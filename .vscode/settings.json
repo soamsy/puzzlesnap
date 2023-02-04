@@ -1,0 +1,53 @@
+{
+        "calva.customREPLCommandSnippets": [
+        {
+            "name": "Start puzzlesnap Server",
+            "ns": "user",
+            "repl": "clj",
+            "snippet": "(start)"
+        },
+        {
+            "name": "Stop puzzlesnap Server",
+            "ns": "user",
+            "repl": "clj",
+            "snippet": "(stop)"
+        },
+        {
+            "name": "Restart puzzlesnap Server",
+            "ns": "user",
+            "repl": "clj",
+            "snippet": "(restart)"
+        }
+    ],
+    "calva.replConnectSequences": [
+                {
+            "name": "puzzlesnap Server",
+            "projectType": "Leiningen",
+            "afterCLJReplJackInCode": "(in-ns 'user) (start) (println \"Access the server at http://localhost:3000\")",
+            "cljsType": "none",
+            "menuSelections": {
+                "leinProfiles": [
+                    "dev"
+                ]
+            }
+        },
+        {
+            "name": "puzzlesnap Server + Client",
+            "projectType": "shadow-cljs",
+            "afterCLJReplJackInCode": "(in-ns 'user) (start) (println \"Access the server at http://localhost:3000\")",
+            "cljsType": "shadow-cljs",
+            "menuSelections": {
+                "cljsLaunchBuilds": [
+                    "app",
+                    "test"
+                ],
+                "cljsDefaultBuild": "app"
+            }
+        }
+    ],
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#550D49",
+        "titleBar.activeBackground": "#771266",
+        "titleBar.activeForeground": "#FEFCFE"
+    }
+}
