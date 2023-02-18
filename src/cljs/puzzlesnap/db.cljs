@@ -4,8 +4,8 @@
 (def default-db
   {:canvas
    {:draw-size 100
-    :origin-x 100
-    :origin-y 100
+    :left 100
+    :top 100
     :is-panning false
     :pan-start-x 0
     :pan-start-y 0

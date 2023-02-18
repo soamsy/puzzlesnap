@@ -65,11 +65,11 @@
              (/ js/innerWidth image-width)
              (/ js/innerHeight image-height)))))
 
-(defn piece-location [{:keys [origin-x origin-y piece-width piece-height] :as cv}
+(defn piece-location [{:keys [left top piece-width piece-height] :as cv}
                       {:keys [loc-x loc-y main-piece-i main-piece-j] :as chunk}
                       [i j]]
-  [(+ origin-x loc-x (* piece-width (- i main-piece-i)))
-   (+ origin-y loc-y (* piece-height (- j main-piece-j)))])
+  [(+ left loc-x (* piece-width (- i main-piece-i)))
+   (+ top loc-y (* piece-height (- j main-piece-j)))])
 
 (defn find-chunk [{:keys [chunks chunk-order scale piece-width piece-height] :as cv} mouse-x mouse-y]
   (letfn [(contains-coords? [{:keys [piece-grid] :as chunk}]
@@ -147,14 +147,14 @@
            :else {})))
 
 
-(defn mouse-up [{:keys [origin-x origin-y pan-dx pan-dy chunks drag-chunk drag-chunk-dx drag-chunk-dy] :as cv}]
+(defn mouse-up [{:keys [left top pan-dx pan-dy chunks drag-chunk drag-chunk-dx drag-chunk-dy] :as cv}]
   (-> cv
       (merge
        {:is-panning false
         :pan-start-x 0
         :pan-start-y 0
-        :origin-x (+ origin-x pan-dx)
-        :origin-y (+ origin-y pan-dy)
+        :left (+ left pan-dx)
+        :top (+ top pan-dy)
         :pan-dx 0
         :pan-dy 0
         :chunks (if drag-chunk

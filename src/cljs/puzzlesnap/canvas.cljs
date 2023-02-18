@@ -10,8 +10,8 @@
 
 (defn update-canvas
   [{:keys
-    [origin-x
-     origin-y
+    [left
+     top
      pan-dx
      pan-dy
      scale

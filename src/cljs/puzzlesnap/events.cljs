@@ -51,7 +51,7 @@
 (reg-event-db
  :mouse-wheel
  canvas-interceptor
- (fn [{:keys [scale origin-x origin-y] :as cv} [x y deltaY]]
+ (fn [{:keys [scale left top] :as cv} [x y deltaY]]
    (let [increment (if (< 0 deltaY) -0.1 0.1)
          new-scale (js/Math.max 0.2 (+ scale increment))
          ratio (/ new-scale scale)
@@ -60,8 +60,8 @@
      (merge
       cv
       {:scale new-scale
-       :origin-x (+ origin-x (/ (- x new-x) new-scale))
-       :origin-y (+ origin-y (/ (- y new-y) new-scale))}))))
+       :left (+ left (/ (- x new-x) new-scale))
+       :top (+ top (/ (- y new-y) new-scale))}))))
 
 (reg-event-db
   :common/set-error
