@@ -1,6 +1,6 @@
 (ns ^:dev/once puzzlesnap.app
   (:require
-    [puzzlesnap.core :as core]
+    [puzzlesnap.init :refer [init!]]
     [cljs.spec.alpha :as s]
     [expound.alpha :as expound]
     [devtools.core :as devtools]))
@@ -16,4 +16,4 @@
 
 (devtools/install!)
 
-(core/init!)
+(init!)

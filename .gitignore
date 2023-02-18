@@ -16,4 +16,5 @@ profiles.clj
 /log
 .lsp
 .clj-kondo/.cache
+.calva
 

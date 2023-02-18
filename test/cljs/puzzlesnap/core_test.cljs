@@ -2,7 +2,7 @@
   (:require [cljs.test :refer-macros [is are deftest testing use-fixtures]]
             [pjstadig.humane-test-output]
             [reagent.core :as reagent :refer [atom]]
-            [puzzlesnap.core :as rc]))
+            [puzzlesnap.init :as rc]))
 
 (deftest test-home
   (is (= true true)))

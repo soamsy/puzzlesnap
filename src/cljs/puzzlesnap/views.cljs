@@ -1,0 +1,93 @@
+(ns puzzlesnap.views
+  (:require [day8.re-frame.http-fx]
+            [puzzlesnap.canvas :refer [update-canvas]]
+            [puzzlesnap.events]
+            [puzzlesnap.subs]
+            [re-frame.core :as rf]
+            [reagent.core :as r]))
+
+(defn navbar []
+  (r/with-let [expanded? (r/atom false)]
+    [:nav.navbar.is-info>div.container
+     [:div.navbar-brand
+      [:a.navbar-item {:href "/" :style {:font-weight :bold}} "puzzlesnap"]
+      [:span.navbar-burger.burger
+       {:data-target :nav-menu
+        :on-click #(swap! expanded? not)
+        :class (when @expanded? :is-active)}
+       [:span] [:span] [:span]]]
+     [:div#nav-menu.navbar-menu
+      {:class (when @expanded? :is-active)}
+      [:div.navbar-start
+       [:button {:on-click #(rf/dispatch [:bad-click])} "click me"]]]]))
+
+
+(defn on-mouse-down [x y pan?]
+  (rf/dispatch [:mouse-down x y pan?]))
+
+(defn on-mouse-move [x y]
+  (rf/dispatch [:mouse-move x y]))
+
+(defn on-mouse-up []
+  (rf/dispatch [:mouse-up]))
+
+(defn on-mouse-out [x y]
+(js/console.log "out mouse")
+  (when-not (and (<= 0 x js/innerWidth) (<= 0 y js/innerHeight))
+    (on-mouse-up)))
+
+(defn on-mouse-wheel [x y deltaY]
+  (rf/dispatch [:mouse-wheel x y deltaY]))
+
+(defn init-canvas [canvas]
+  (let [getTouch (fn [e] (aget (.-touches e) 0))]
+    (doto canvas
+      (.addEventListener "mousedown" #(on-mouse-down (.-x %) (.-y %) (#{2 4} (.-buttons %))))
+      (.addEventListener "mousemove" #(on-mouse-move (.-x %) (.-y %)))
+      (.addEventListener "touchstart" #(on-mouse-down
+                                        (-> % getTouch .-clientX)
+                                        (-> % getTouch .-clientY)
+                                        true) #js {:passive true})
+      (.addEventListener "touchmove" #(on-mouse-move
+                                       (-> % getTouch .-clientX)
+                                       (-> % getTouch .-clientY)) #js {:passive true})
+      (.addEventListener "mouseup" #(on-mouse-up))
+      (.addEventListener "touchend" #(on-mouse-up))
+      (.addEventListener "mouseout" #(on-mouse-out (.-pageX %) (.-pageY %)))
+      (.addEventListener "mousewheel" #(on-mouse-wheel (.-clientX %) (.-clientY %) (.-deltaY %))))))
+
+(defn canvas-inner [img-ref]
+  (let [canvas-ref (atom nil)
+        cv (rf/subscribe [:canvas])]
+    (r/create-class
+     {:reagent-render
+      (fn []
+        @cv
+        [:canvas.canvas-inner {:ref #(reset! canvas-ref %)}])
+      :component-did-mount
+      (fn []
+        (init-canvas @canvas-ref))
+      :component-did-update
+      (fn []
+        (update-canvas @cv @canvas-ref @img-ref))
+      :display-name "canvas-inner"})))
+
+(defn canvas-outer []
+  (r/with-let
+    [image-uri (rf/subscribe [:canvas/image-uri])
+     resizeHandler #(rf/dispatch [:canvas-tick])
+     _ (.addEventListener js/window "resize" resizeHandler)]
+    (let [img-ref (atom nil)]
+      [:section.canvas-outer
+       [(canvas-inner img-ref)]
+       [:img {:ref #(reset! img-ref %)
+              :id "invisible-image"
+              :src @image-uri
+              :style {:display "none"}
+              :on-load #(rf/dispatch [:image-loaded @img-ref])}]])
+    (finally (.removeEventListener js/window "resize" resizeHandler))))
+
+(defn page []
+  [:div.full
+   [navbar]
+   [canvas-outer]])

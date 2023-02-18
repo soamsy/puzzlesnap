@@ -1,7 +1,7 @@
 (ns puzzlesnap.app
-  (:require [puzzlesnap.core :as core]))
+  (:require [puzzlesnap.init :refer [init!]]))
 
 ;;ignore println statements in prod
 (set! *print-fn* (fn [& _]))
 
-(core/init!)
+(init!)
