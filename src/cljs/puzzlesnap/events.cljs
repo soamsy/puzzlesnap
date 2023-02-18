@@ -26,22 +26,22 @@
      piece-height] :as cv}]
   (assoc
    cv :chunks
-   (into []
-    (flatten
-     (for [i (range puzzle-width)]
-       (for [j (range puzzle-height)]
-         (let [expand-x (* (js/Math.random) 200 (dec (* 2 (/ i (dec puzzle-width)))))
-               expand-y (* (js/Math.random) 200 (dec (* 2 (/ j (dec puzzle-height)))))]
-           {:loc-x (+ expand-x (* i piece-width))
-            :loc-y (+ expand-y (* j piece-height))
-            :drag-start-x 0
-            :drag-start-y 0
-            :drag-dx 0
-            :drag-dy 0
-            :index (+ (* i puzzle-height) j)
-            :piece-grid #{[i j]}
-            :main-piece-x i
-            :main-piece-y j})))))))
+   (into
+    []
+    (for [i (range puzzle-width)
+          j (range puzzle-height)]
+      (let [expand-x (* (js/Math.random) 200 (dec (* 2 (/ i (dec puzzle-width)))))
+            expand-y (* (js/Math.random) 200 (dec (* 2 (/ j (dec puzzle-height)))))]
+        {:loc-x (+ expand-x (* i piece-width))
+         :loc-y (+ expand-y (* j piece-height))
+         :drag-start-x 0
+         :drag-start-y 0
+         :drag-dx 0
+         :drag-dy 0
+         :index (+ (* i puzzle-height) j)
+         :piece-grid #{[i j]}
+         :main-piece-x i
+         :main-piece-y j})))))
 
 (defn init-piece-to-chunk
   [{chunks :chunks :as cv}]
@@ -126,28 +126,30 @@
            [1 0]])
 
 (defn detect-neighbor [{:keys [piece-width piece-height] :as cv} dropped-chunk piece neighbor-chunk neighbor]
-  (let [[neighbor-x neighbor-y] (piece-location cv neighbor-chunk neighbor)
-        [expected-x expected-y] (piece-location cv dropped-chunk neighbor)
-        [x-diff y-diff] (map - piece neighbor)
-        x-tolerance (/ piece-width (if (zero? x-diff) 4 12))
-        y-tolerance (/ piece-height (if (zero? y-diff) 4 12))]
+  (let [neighbor-loc (piece-location cv neighbor-chunk neighbor)
+        expected-loc (piece-location cv dropped-chunk neighbor)
+        [x-dir y-dir] (map - piece neighbor)
+        [x-dist y-dist] (map #(js/Math.abs (- %1 %2)) neighbor-loc expected-loc)
+        vertical-snap? (zero? x-dir)
+        x-tolerance (/ piece-width (if vertical-snap? 5 12))
+        y-tolerance (/ piece-height (if vertical-snap? 12 5))]
     (when (and
            (not= (:index neighbor-chunk) (:index dropped-chunk))
-           (< (js/Math.abs (- neighbor-x expected-x)) x-tolerance)
-           (< (js/Math.abs (- neighbor-y expected-y)) y-tolerance))
-      neighbor-chunk)))
+           (< x-dist x-tolerance)
+           (< y-dist y-tolerance))
+      [neighbor-chunk (if vertical-snap? y-dist x-dist)])))
 
 (defn merge-chunks [{:keys [chunks piece->chunk] :as cv} dropped-chunk-index]
   (let [dropped-chunk (get chunks dropped-chunk-index)
         piece-grid (:piece-grid dropped-chunk)
         potential-chunks
-        (for [[px py :as piece] piece-grid]
-          (for [[x-dir y-dir] dirs]
-            (let [neighbor [(+ px x-dir) (+ py y-dir)]
-                  neighbor-chunk (get chunks (piece->chunk neighbor))]
-              (when neighbor-chunk
-                (detect-neighbor cv dropped-chunk piece neighbor-chunk neighbor)))))
-        chosen-chunk (first (filter identity (flatten potential-chunks)))]
+        (for [[px py :as piece] piece-grid
+              [x-dir y-dir] dirs]
+          (let [neighbor [(+ px x-dir) (+ py y-dir)]
+                neighbor-chunk (get chunks (piece->chunk neighbor))]
+            (when neighbor-chunk
+              (detect-neighbor cv dropped-chunk piece neighbor-chunk neighbor))))
+        [chosen-chunk _] (first (sort-by #(nth % 1) (filter identity potential-chunks)))]
     (if chosen-chunk
       (-> cv
           (update-in [:chunks (:index chosen-chunk) :piece-grid] (partial set/union piece-grid))
