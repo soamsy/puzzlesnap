@@ -1,8 +1,8 @@
 (ns puzzlesnap.events
-  (:require [ajax.core :as ajax]
+  (:require [clojure.set :as set]
             [puzzlesnap.db :refer [default-db]]
-            [re-frame.core :refer [after debug dispatch inject-cofx path
-                                   reg-cofx reg-event-db reg-event-fx reg-fx trim-v]]))
+            [puzzlesnap.model :refer [piece-location]]
+            [re-frame.core :refer [debug path reg-event-db reg-event-fx trim-v]]))
 
 (reg-event-fx
  :app/initialize
@@ -39,7 +39,7 @@
             :drag-dx 0
             :drag-dy 0
             :index (+ (* i puzzle-height) j)
-            :piece-grid #{{:x i :y j}}
+            :piece-grid #{[i j]}
             :main-piece-x i
             :main-piece-y j})))))))
 
@@ -82,17 +82,14 @@
        (init-puzzle)
        (scale-to-image)))))
 
-(defn find-chunk [{:keys [chunks chunk-order origin-x origin-y scale piece-width piece-height]} mouse-x mouse-y]
-  (letfn [(contains-coords? [{:keys [piece-grid loc-x loc-y main-piece-x main-piece-y]}]
+(defn find-chunk [{:keys [chunks chunk-order scale piece-width piece-height] :as cv} mouse-x mouse-y]
+  (letfn [(contains-coords? [{:keys [piece-grid] :as chunk}]
             (some
-             (fn [{px :x py :y}]
-               (let [chunk-x (+ origin-x loc-x)
-                     chunk-y (+ origin-y loc-y)
-                     piece-x (+ chunk-x (* piece-width (- px main-piece-x)))
-                     piece-y (+ chunk-y (* piece-height (- py main-piece-y)))]
+             (fn [piece]
+               (let [[piece-x piece-y] (piece-location cv chunk piece)]
                  (and
-                  (< (* scale piece-x) mouse-x (* scale (+ piece-x piece-width)))
-                  (< (* scale piece-y) mouse-y (* scale (+ piece-y piece-height))))))
+                  (< piece-x (/ mouse-x scale) (+ piece-x piece-width))
+                  (< piece-y (/ mouse-y scale) (+ piece-y piece-height)))))
              piece-grid))]
     (first (filter contains-coords? (map chunks chunk-order)))))
 
@@ -114,14 +111,49 @@
 (reg-event-db
  :mouse-move
  (remove #{debug} canvas-interceptor)
- (fn [{:keys [pan-start-x pan-start-y scale] :as cv} [x y]]
+ (fn [{:keys [pan-start-x pan-start-y scale drag-chunk-start-x drag-chunk-start-y] :as cv} [x y]]
  (merge cv
         (cond
           (-> cv :is-panning) {:pan-dx (/ (- x pan-start-x) scale)
                                :pan-dy (/ (- y pan-start-y) scale)}
-          (-> cv :drag-chunk) {:drag-chunk-dx (/ (- x (:drag-chunk-start-x cv)) scale)
-                               :drag-chunk-dy (/ (- y (:drag-chunk-start-y cv)) scale)}
+          (-> cv :drag-chunk) {:drag-chunk-dx (/ (- x drag-chunk-start-x) scale)
+                               :drag-chunk-dy (/ (- y drag-chunk-start-y) scale)}
           :else {}))))
+
+(def dirs [[0 -1]
+           [0 1]
+           [-1 0]
+           [1 0]])
+
+(defn detect-neighbor [{:keys [piece-width piece-height] :as cv} dropped-chunk piece neighbor-chunk neighbor]
+  (let [[neighbor-x neighbor-y] (piece-location cv neighbor-chunk neighbor)
+        [expected-x expected-y] (piece-location cv dropped-chunk neighbor)
+        [x-diff y-diff] (map - piece neighbor)
+        x-tolerance (/ piece-width (if (zero? x-diff) 4 12))
+        y-tolerance (/ piece-height (if (zero? y-diff) 4 12))]
+    (when (and
+           (not= (:index neighbor-chunk) (:index dropped-chunk))
+           (< (js/Math.abs (- neighbor-x expected-x)) x-tolerance)
+           (< (js/Math.abs (- neighbor-y expected-y)) y-tolerance))
+      neighbor-chunk)))
+
+(defn merge-chunks [{:keys [chunks piece->chunk] :as cv} dropped-chunk-index]
+  (let [dropped-chunk (get chunks dropped-chunk-index)
+        piece-grid (:piece-grid dropped-chunk)
+        potential-chunks
+        (for [[px py :as piece] piece-grid]
+          (for [[x-dir y-dir] dirs]
+            (let [neighbor [(+ px x-dir) (+ py y-dir)]
+                  neighbor-chunk (get chunks (piece->chunk neighbor))]
+              (when neighbor-chunk
+                (detect-neighbor cv dropped-chunk piece neighbor-chunk neighbor)))))
+        chosen-chunk (first (filter identity (flatten potential-chunks)))]
+    (if chosen-chunk
+      (-> cv
+          (update-in [:chunks (:index chosen-chunk) :piece-grid] (partial set/union piece-grid))
+          (assoc-in [:chunks (:index dropped-chunk) :piece-grid] #{})
+          (assoc-in [:piece->chunk] (merge piece->chunk (into {} (map #(vector %1 (:index chosen-chunk)) piece-grid)))))
+      cv)))
 
 (reg-event-db
  :mouse-up
@@ -145,7 +177,10 @@
          :drag-chunk-start-y 0
          :drag-chunk-dx 0
          :drag-chunk-dy 0
-         :drag-chunk nil}))))
+         :drag-chunk nil})
+       (#(if drag-chunk
+          (merge-chunks % drag-chunk)
+          %)))))
 
 (reg-event-db
  :mouse-wheel

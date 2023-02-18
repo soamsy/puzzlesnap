@@ -1,4 +1,5 @@
-(ns puzzlesnap.canvas)
+(ns puzzlesnap.canvas 
+  (:require [puzzlesnap.model :refer [piece-location]]))
 
 (defn get-dimensions [node]
   (let [r (.getBoundingClientRect node)]
@@ -25,21 +26,21 @@
   (when (and canvasNode image (image-loaded? image))
     (let [ctx (-> canvasNode (.getContext "2d"))
           [w h] (get-dimensions (.-parentNode canvasNode))
-          x (+ origin-x pan-dx)
-          y (+ origin-y pan-dy)
-          draw-chunk (fn [{:keys [piece-grid loc-x loc-y main-piece-x main-piece-y index]}]
-                       (doseq [{px :x py :y} piece-grid]
-                         (let [drag-dx (if (= drag-chunk index) drag-chunk-dx 0)
-                               drag-dy (if (= drag-chunk index) drag-chunk-dy 0)
-                               sx (* px piece-width)
-                               sy (* py piece-height)
-                               tx (+ x loc-x drag-dx (* piece-width (- px main-piece-x)))
-                               ty (+ y loc-y drag-dy (* piece-height (- py main-piece-y)))]
-                           (-> (.drawImage
-                                ctx
-                                image
-                                sx sy piece-width piece-height
-                                tx ty piece-width piece-height)))))]
+          draw-chunk
+          (fn [{:keys [piece-grid index] :as chunk}]
+            (doseq [[px py :as piece] piece-grid]
+              (let [drag-dx (if (= drag-chunk index) drag-chunk-dx 0)
+                    drag-dy (if (= drag-chunk index) drag-chunk-dy 0)
+                    [piece-x piece-y] (piece-location cv chunk piece)
+                    sx (* px piece-width)
+                    sy (* py piece-height)
+                    tx (+ piece-x pan-dx drag-dx)
+                    ty (+ piece-y pan-dy drag-dy)]
+                (-> (.drawImage
+                     ctx
+                     image
+                     sx sy piece-width piece-height
+                     tx ty piece-width piece-height)))))]
       (when (not= w (.-width canvasNode))
         (set! (.-width canvasNode) w))
       (when (not= h (.-height canvasNode))
