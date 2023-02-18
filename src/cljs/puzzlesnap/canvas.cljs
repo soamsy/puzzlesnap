@@ -28,12 +28,12 @@
           [w h] (get-dimensions (.-parentNode canvasNode))
           draw-chunk
           (fn [{:keys [piece-grid index] :as chunk}]
-            (doseq [[px py :as piece] piece-grid]
+            (doseq [[i j :as piece] piece-grid]
               (let [drag-dx (if (= drag-chunk index) drag-chunk-dx 0)
                     drag-dy (if (= drag-chunk index) drag-chunk-dy 0)
                     [piece-x piece-y] (piece-location cv chunk piece)
-                    sx (* px piece-width)
-                    sy (* py piece-height)
+                    sx (* i piece-width)
+                    sy (* j piece-height)
                     tx (+ piece-x pan-dx drag-dx)
                     ty (+ piece-y pan-dy drag-dy)]
                 (-> (.drawImage
