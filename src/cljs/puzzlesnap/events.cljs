@@ -70,7 +70,9 @@
 (reg-event-db
  :image-loaded
  canvas-interceptor
- (fn [{:keys [puzzle-width puzzle-height] :as cv} [img]] 
+ (fn [{:keys [puzzle-width puzzle-height image-loaded] :as cv} [img]] 
+ (if image-loaded
+   (update cv :id inc)
    (-> cv
        (assoc :image-loaded true)
        (assoc :image-width (.-naturalWidth img))
@@ -78,10 +80,10 @@
        (assoc :piece-width (/ (.-naturalWidth img) puzzle-width))
        (assoc :piece-height (/ (.-naturalHeight img) puzzle-height))
        (init-puzzle)
-       (scale-to-image))))
+       (scale-to-image)))))
 
 (defn find-chunk [{:keys [chunks chunk-order origin-x origin-y scale piece-width piece-height]} mouse-x mouse-y]
-  (letfn [(chunk-contains [{:keys [piece-grid loc-x loc-y main-piece-x main-piece-y]}]
+  (letfn [(contains-coords? [{:keys [piece-grid loc-x loc-y main-piece-x main-piece-y]}]
             (some
              (fn [{px :x py :y}]
                (let [chunk-x (+ origin-x loc-x)
@@ -92,7 +94,7 @@
                   (< (* scale piece-x) mouse-x (* scale (+ piece-x piece-width)))
                   (< (* scale piece-y) mouse-y (* scale (+ piece-y piece-height))))))
              piece-grid))]
-    (first (filter chunk-contains (map chunks chunk-order)))))
+    (first (filter contains-coords? (map chunks chunk-order)))))
 
 (reg-event-db
  :mouse-down
@@ -111,7 +113,7 @@
 
 (reg-event-db
  :mouse-move
- canvas-interceptor
+ (remove #{debug} canvas-interceptor)
  (fn [{:keys [pan-start-x pan-start-y scale] :as cv} [x y]]
  (merge cv
         (cond

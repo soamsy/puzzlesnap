@@ -21,20 +21,21 @@
       [:div.navbar-start
        [:button {:on-click #(rf/dispatch [:bad-click])} "click me"]]]]))
 
+(defn offset-coords [canvas x y]
+   [(- x (.-offsetLeft canvas)) 
+    (- y (.-offsetTop canvas))])
 
-(defn on-mouse-down [x y pan?]
+(defn on-mouse-down [[x y] pan?]
   (rf/dispatch [:mouse-down x y pan?]))
 
-(defn on-mouse-move [x y]
+(defn on-mouse-move [[x y]]
   (rf/dispatch [:mouse-move x y]))
 
 (defn on-mouse-up []
   (rf/dispatch [:mouse-up]))
 
 (defn on-mouse-out [x y]
-(js/console.log "out mouse")
-  (when-not (and (<= 0 x js/innerWidth) (<= 0 y js/innerHeight))
-    (on-mouse-up)))
+  (on-mouse-up))
 
 (defn on-mouse-wheel [x y deltaY]
   (rf/dispatch [:mouse-wheel x y deltaY]))
@@ -42,15 +43,19 @@
 (defn init-canvas [canvas]
   (let [getTouch (fn [e] (aget (.-touches e) 0))]
     (doto canvas
-      (.addEventListener "mousedown" #(on-mouse-down (.-x %) (.-y %) (#{2 4} (.-buttons %))))
-      (.addEventListener "mousemove" #(on-mouse-move (.-x %) (.-y %)))
+      (.addEventListener "mousedown" #(do (js/console.log %) (on-mouse-down (offset-coords canvas (.-x %) (.-y %)) (#{2 4} (.-buttons %)))))
+      (.addEventListener "mousemove" #(on-mouse-move (offset-coords canvas (.-x %) (.-y %))))
       (.addEventListener "touchstart" #(on-mouse-down
-                                        (-> % getTouch .-clientX)
-                                        (-> % getTouch .-clientY)
+                                        (offset-coords
+                                         canvas
+                                         (-> % getTouch .-clientX)
+                                         (-> % getTouch .-clientY))
                                         true) #js {:passive true})
       (.addEventListener "touchmove" #(on-mouse-move
-                                       (-> % getTouch .-clientX)
-                                       (-> % getTouch .-clientY)) #js {:passive true})
+                                       (offset-coords
+                                        canvas
+                                        (-> % getTouch .-clientX)
+                                        (-> % getTouch .-clientY))) #js {:passive true})
       (.addEventListener "mouseup" #(on-mouse-up))
       (.addEventListener "touchend" #(on-mouse-up))
       (.addEventListener "mouseout" #(on-mouse-out (.-pageX %) (.-pageY %)))
