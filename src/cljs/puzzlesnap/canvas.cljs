@@ -20,7 +20,8 @@
      chunks
      drag-chunk
      drag-chunk-dx
-     drag-chunk-dy] :as cv}
+     drag-chunk-dy
+     chunk-order] :as cv}
    canvasNode
    image]
   (when (and canvasNode image (image-loaded? image))
@@ -49,6 +50,6 @@
         (.save)
         (.clearRect 0 0 w h)
         (.scale scale scale))
-      (doseq [chunk chunks] (draw-chunk chunk))
+      (doseq [i chunk-order] (draw-chunk (get chunks i)))
       (doto ctx
         (.restore)))))

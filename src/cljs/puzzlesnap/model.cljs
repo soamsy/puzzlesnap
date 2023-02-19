@@ -33,8 +33,7 @@
 
 (defn init-chunk-order [{chunks :chunks :as cv}]
   (assoc cv :chunk-order
-         (reverse (map :index chunks)))) 
-
+         (vec (reverse (map :index chunks))))) 
 
 (defn create-tab [piece-length]
   {:tab-length (/ piece-length 4)
@@ -125,7 +124,7 @@
           (assoc-in [:piece->chunk] (merge piece->chunk (into {} (map #(vector %1 (:index chosen-chunk)) piece-grid)))))
       cv)))
 
-(defn mouse-down [cv [x y pan?]]
+(defn mouse-down [{:keys [chunk-order] :as cv} [x y pan?]]
   (merge
    cv
    (if pan?
@@ -135,7 +134,13 @@
      (when-let [chunk (find-chunk cv x y)]
        {:drag-chunk (:index chunk)
         :drag-chunk-start-x x
-        :drag-chunk-start-y y}))))
+        :drag-chunk-start-y y
+        :chunk-order (let [i (.indexOf chunk-order (:index chunk))]
+                       (vec
+                        (concat
+                         (subvec chunk-order 0 i)
+                         (subvec chunk-order (inc i) (count chunk-order))
+                         [(nth chunk-order i)])))}))))
 
 (defn mouse-move [{:keys [pan-start-x pan-start-y scale drag-chunk-start-x drag-chunk-start-y] :as cv} [x y]]
   (merge cv
