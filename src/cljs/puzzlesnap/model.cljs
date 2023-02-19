@@ -64,20 +64,23 @@
              (/ js/innerWidth image-width)
              (/ js/innerHeight image-height)))))
 
-(defn piece-location [{:keys [left top piece-width piece-height] :as cv}
+(defn piece-location [{:keys [piece-width piece-height] :as cv}
                       {:keys [loc-x loc-y main-piece-i main-piece-j] :as chunk}
                       [i j]]
-  [(+ left loc-x (* piece-width (- i main-piece-i)))
-   (+ top loc-y (* piece-height (- j main-piece-j)))])
+  [(+ loc-x (* piece-width (- i main-piece-i)))
+   (+ loc-y (* piece-height (- j main-piece-j)))])
 
-(defn find-chunk [{:keys [chunks chunk-order scale piece-width piece-height] :as cv} mouse-x mouse-y]
+(defn translate-mouse-coords [{:keys [left top scale]} [x y]]
+  [(- (/ x scale) left) (- (/ y scale) top)])
+
+(defn find-chunk [{:keys [chunks chunk-order piece-width piece-height] :as cv} [mx my]]
   (letfn [(contains-coords? [{:keys [piece-grid] :as chunk}]
             (some
              (fn [piece]
                (let [[piece-x piece-y] (piece-location cv chunk piece)]
                  (and
-                  (< piece-x (/ mouse-x scale) (+ piece-x piece-width))
-                  (< piece-y (/ mouse-y scale) (+ piece-y piece-height)))))
+                  (< piece-x mx (+ piece-x piece-width))
+                  (< piece-y my (+ piece-y piece-height)))))
              piece-grid))]
     (first (filter contains-coords? (map chunks chunk-order)))))
 
@@ -131,7 +134,7 @@
      {:is-panning true
       :pan-start-x x
       :pan-start-y y}
-     (when-let [chunk (find-chunk cv x y)]
+     (when-let [chunk (find-chunk cv (translate-mouse-coords cv [x y]))]
        {:drag-chunk (:index chunk)
         :drag-chunk-start-x x
         :drag-chunk-start-y y

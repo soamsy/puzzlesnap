@@ -49,7 +49,8 @@
       (doto ctx
         (.save)
         (.clearRect 0 0 w h)
-        (.scale scale scale))
+        (.scale scale scale)
+        (.translate left top))
       (doseq [i chunk-order] (draw-chunk (get chunks i)))
       (doto ctx
         (.restore)))))
