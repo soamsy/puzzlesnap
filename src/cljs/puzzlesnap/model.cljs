@@ -35,18 +35,77 @@
   (assoc cv :chunk-order
          (vec (reverse (map :index chunks))))) 
 
-(defn create-tab [piece-length]
-  {:tab-length (/ piece-length 4)
-   :tab-width (/ piece-length 4)})
+(defn create-tab [scaler-x scaler-y]
+  (let [xs [0.0 0.2 0.4 0.5 0.6 0.8 1.0]
+        ys [0.0 0.0 0.1 0.25 0.1 0.0 0.0]
+        cx2s (mapv + xs [0.0 -0.1 0.05 -0.1 0.05 -0.1 0.0])
+        cy2s (mapv + ys [0.0 0.0 -0.1 0.0 0.1 0.0 0.0])
+        cx1s (mapv + xs (map - xs cx2s))
+        cy1s (mapv + ys (map - ys cy2s))
+        scale-x (partial * scaler-x)
+        scale-y (partial * scaler-y)
+        vals [xs ys cx1s cy1s cx2s cy2s]]
+        (apply mapv (fn [x y cx1 cy1 cx2 cy2]
+                     {:x (scale-x x) :y (scale-y y)
+                      :cx1 (scale-x cx1) :cy1 (scale-y cy1)
+                      :cx2 (scale-x cx2) :cy2 (scale-y cy2)})
+               vals)))
 
-(defn init-tabs [{:keys [puzzle-width puzzle-height piece-width piece-height] :as cv}]
-  (assoc cv :tabs
-         {:vertical (for [i (range puzzle-width)]
-                      (for [j (range (dec puzzle-height))]
-                        (create-tab piece-width)))
-          :horizontal (for [i (range (dec puzzle-width))]
-                        (for [j (range puzzle-height)]
-                          (create-tab piece-height)))}))
+(defn vec2d
+  [x y f]
+  (vec (for [i (range x)] (vec (for [j (range y)] (f i j))))))
+
+(defn swap-xs-ys 
+  [{:keys [x y cx1 cy1 cx2 cy2]}]
+  {:x (- y) :y x
+   :cx1 (- cy1) :cy1 cx1
+   :cx2 (- cy2) :cy2 cx2})
+
+(defn translate-bezier 
+  [{:keys [x y cx1 cy1 cx2 cy2]} [sx sy]]
+  {:x (+ x sx) :y (+ y sy)
+   :cx1 (+ cx1 sx) :cy1 (+ cy1 sy)
+   :cx2 (+ cx2 sx) :cy2 (+ cy2 sy)})
+
+(defn make-bezier-point [[x y]]
+  {:x x :y y
+   :cx1 0 :cy1 0
+   :cx2 0 :cy2 0})
+
+(defn init-tabs
+  [{:keys [puzzle-width puzzle-height piece-width piece-height] :as cv}]
+  (let [corners (vec2d (inc puzzle-width) (inc puzzle-height)
+                       (fn [i j]
+                         (let [limit-x (/ piece-width 12)
+                               limit-y (/ piece-height 12)]
+                           [(if (< 0 i puzzle-width) 
+                              (- (* (js/Math.random) limit-x) (/ limit-x 2))
+                                0)
+                            (if (< 0 j puzzle-height)
+                              (- (* (js/Math.random) limit-y) (/ limit-y 2))
+                              0)])))]
+    (assoc cv :tabs
+           {:vertical (vec2d puzzle-width (inc puzzle-height)
+                             (fn [i j]
+                               (let [beg-offset (some-> corners (get i) (get j))
+                                     end-offset (some-> corners (get (inc i)) (get j))]
+                                 (if (< 0 j puzzle-height)
+                                   (-> (create-tab piece-width piece-height)
+                                       (update 0 #(translate-bezier % beg-offset))
+                                       (update 6 #(translate-bezier % end-offset)))
+                                   [(translate-bezier (make-bezier-point [0 0]) beg-offset) 
+                                    (translate-bezier (make-bezier-point [piece-width 0]) end-offset)]))))
+            :horizontal (vec2d (inc puzzle-width) puzzle-height 
+                               (fn [i j] 
+                               (let [beg-offset (some-> corners (get i) (get j))
+                                     end-offset (some-> corners (get i) (get (inc j)))]
+                                     (if (< 0 i puzzle-width)
+                                       (-> (mapv swap-xs-ys (create-tab piece-height piece-width))
+                                           (update 0 #(translate-bezier % beg-offset))
+                                           (update 6 #(translate-bezier % end-offset)))
+                                       [(translate-bezier (make-bezier-point [0 0]) beg-offset) 
+                                        (translate-bezier (make-bezier-point [0 piece-height]) end-offset)]))))
+            :corners corners})))
 
 (defn init-puzzle
   [cv] 

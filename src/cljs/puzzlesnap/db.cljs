@@ -17,7 +17,7 @@
     :image-width 0
     :image-height 0
     :puzzle-width 5
-    :puzzle-height 3
+    :puzzle-height 4
     :drag-chunk nil
     :drag-chunk-start-x 0
     :drag-chunk-start-y 0
