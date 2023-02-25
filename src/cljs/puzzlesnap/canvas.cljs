@@ -8,6 +8,21 @@
 (defn image-loaded? [image]
   (and (.-complete image) (< 0 (.-naturalHeight image))))
 
+(defn bezier-to [ctx ref-x ref-y cx1 cy1 cx2 cy2 x y]
+  (.bezierCurveTo ctx
+                  (+ ref-x cx1)
+                  (+ ref-y cy1)
+                  (+ ref-x cx2)
+                  (+ ref-y cy2)
+                  (+ ref-x x)
+                  (+ ref-y y)))
+
+(defn bezier-normal  [ctx ref-x ref-y {:keys [cx1 cy1]} {:keys [x y cx2 cy2]}]
+  (bezier-to ctx ref-x ref-y cx1 cy1 cx2 cy2 x y))
+
+(defn bezier-reverse [ctx ref-x ref-y {:keys [cx2 cy2]} {:keys [x y cx1 cy1]}]
+  (bezier-to ctx ref-x ref-y cx2 cy2 cx1 cy1 x y))
+
 (defn draw-piece
   [ctx image
    {piece-width :piece-width
@@ -24,32 +39,20 @@
         [ix iy] [(get-in top [0 :x]) (get-in top [0 :y])]
         bottom (some-> top-bottom (get i) (get (inc j)))
         left (some-> left-right (get i) (get j))
-        right (some-> left-right (get (inc i)) (get j))
-        bezier-to (fn [ref-x ref-y cx1 cy1 cx2 cy2 x y]
-                    (.bezierCurveTo ctx
-                                    (+ ref-x cx1)
-                                    (+ ref-y cy1)
-                                    (+ ref-x cx2)
-                                    (+ ref-y cy2)
-                                    (+ ref-x x)
-                                    (+ ref-y y)))
-        bezier-normal (fn [ref-x ref-y {:keys [cx1 cy1]} {:keys [x y cx2 cy2]}]
-                        (bezier-to ref-x ref-y cx1 cy1 cx2 cy2 x y))
-        bezier-reverse (fn [ref-x ref-y {:keys [cx2 cy2]} {:keys [x y cx1 cy1]}]
-                         (bezier-to ref-x ref-y cx2 cy2 cx1 cy1 x y))]
+        right (some-> left-right (get (inc i)) (get j))]
     (doto ctx (.beginPath))
     (doto ctx (.moveTo (+ tx ix) (+ ty iy)))
     (doseq [[prev curr] (partition 2 1 top)]
-      (bezier-normal tx ty prev curr))
+      (bezier-normal ctx tx ty prev curr))
 
     (doseq [[prev curr] (partition 2 1 right)]
-      (bezier-normal (+ tx piece-width) ty prev curr))
+      (bezier-normal ctx (+ tx piece-width) ty prev curr))
 
     (doseq [[prev curr] (partition 2 1 (reverse bottom))]
-      (bezier-reverse tx (+ ty piece-height) prev curr))
+      (bezier-reverse ctx tx (+ ty piece-height) prev curr))
 
     (doseq [[prev curr] (partition 2 1 (reverse left))]
-      (bezier-reverse tx ty prev curr))
+      (bezier-reverse ctx tx ty prev curr))
     (.stroke ctx)
     (doto ctx
       (.save)
