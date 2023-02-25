@@ -52,8 +52,8 @@
  :mouse-wheel
  canvas-interceptor
  (fn [{:keys [scale left top] :as cv} [x y deltaY]]
-   (let [increment (if (< 0 deltaY) -0.1 0.1)
-         new-scale (js/Math.max 0.2 (+ scale increment))
+   (let [scale-factor (if (< 0 deltaY) 0.85 1.15)
+         new-scale (js/Math.min 4.0 (js/Math.max 0.2 (* scale scale-factor)))
          ratio (/ new-scale scale)
          new-x (* x ratio)
          new-y (* y ratio)]

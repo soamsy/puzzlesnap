@@ -1,4 +1,4 @@
-(ns puzzlesnap.canvas 
+(ns puzzlesnap.canvas
   (:require [puzzlesnap.model :refer [piece-location]]))
 
 (defn get-dimensions [node]
@@ -8,11 +8,11 @@
 (defn image-loaded? [image]
   (and (.-complete image) (< 0 (.-naturalHeight image))))
 
-(defn draw-piece 
+(defn draw-piece
   [ctx image
    {piece-width :piece-width
     piece-height :piece-height
-    {:keys [horizontal vertical]} :tabs :as cv}
+    {:keys [left-right top-bottom]} :tabs :as cv}
     chunk
    [i j :as piece]
    extra-dx extra-dy]
@@ -20,11 +20,11 @@
         [sx sy] [(* i piece-width) (* j piece-height)]
         [tx ty] [(+ piece-x extra-dx) (+ piece-y extra-dy)]
         [bx by] [(/ piece-width 2) (/ piece-height 2)]
-        top (some-> vertical (get i) (get j))
+        top (some-> top-bottom (get i) (get j))
         [ix iy] [(get-in top [0 :x]) (get-in top [0 :y])]
-        bottom (some-> vertical (get i) (get (inc j)))
-        left (some-> horizontal (get i) (get j))
-        right (some-> horizontal (get (inc i)) (get j))
+        bottom (some-> top-bottom (get i) (get (inc j)))
+        left (some-> left-right (get i) (get j))
+        right (some-> left-right (get (inc i)) (get j))
         bezier-to (fn [ref-x ref-y cx1 cy1 cx2 cy2 x y]
                     (.bezierCurveTo ctx
                                     (+ ref-x cx1)
@@ -60,13 +60,13 @@
        (- tx bx) (- ty by) (+ piece-width (* 2 bx)) (+ piece-height (* 2 by)))
       (.restore))))
 
-(defn draw-chunk 
+(defn draw-chunk
   [ctx image
-   {:keys [drag-chunk 
-           drag-chunk-dx drag-chunk-dy 
-           pan-dx pan-dy] :as cv} 
+   {:keys [drag-chunk
+           drag-chunk-dx drag-chunk-dy
+           pan-dx pan-dy] :as cv}
    {:keys [piece-grid index] :as chunk}]
-  (let [[drag-dx drag-dy] (if (= drag-chunk index) 
+  (let [[drag-dx drag-dy] (if (= drag-chunk index)
                             [drag-chunk-dx drag-chunk-dy]
                             [0 0])]
     (doseq [piece piece-grid]
@@ -82,13 +82,15 @@
       (when (not= w (.-width canvasNode))
         (set! (.-width canvasNode) w))
       (when (not= h (.-height canvasNode))
-        (set! (.-height canvasNode) h))
+        (set! (.-height canvasNode) h)) 
+      (set! (.-lineJoin ctx) "round")
+      (set! (.-lineWidth ctx) 0.01)
       (doto ctx
         (.save)
         (.clearRect 0 0 w h)
         (.scale scale scale)
         (.translate left top))
-      (doseq [i chunk-order] 
+      (doseq [i chunk-order]
         (draw-chunk ctx image cv (get chunks i)))
       (doto ctx
         (.restore)))))
