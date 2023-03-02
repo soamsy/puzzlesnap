@@ -23,25 +23,20 @@
 (defn bezier-reverse [ctx ref-x ref-y {:keys [cx2 cy2]} {:keys [x y cx1 cy1]}]
   (bezier-to ctx ref-x ref-y cx2 cy2 cx1 cy1 x y))
 
-(defn draw-piece
-  [ctx image
+(defn create-piece-path
+  [ctx
    {piece-width :piece-width
     piece-height :piece-height
     {:keys [left-right top-bottom]} :tabs :as cv}
-    chunk
-   [i j :as piece]
-   extra-dx extra-dy]
-  (let [[piece-x piece-y] (piece-location cv chunk piece)
-        [sx sy] [(* i piece-width) (* j piece-height)]
-        [tx ty] [(+ piece-x extra-dx) (+ piece-y extra-dy)]
-        [bx by] [(/ piece-width 2) (/ piece-height 2)]
-        top (some-> top-bottom (get i) (get j))
+   [i j]
+   [tx ty]]
+  (let [top (some-> top-bottom (get i) (get j))
         [ix iy] [(get-in top [0 :x]) (get-in top [0 :y])]
         bottom (some-> top-bottom (get i) (get (inc j)))
         left (some-> left-right (get i) (get j))
         right (some-> left-right (get (inc i)) (get j))]
-    (doto ctx (.beginPath))
-    (doto ctx (.moveTo (+ tx ix) (+ ty iy)))
+    (-> ctx .beginPath)
+    (-> ctx (.moveTo (+ tx ix) (+ ty iy)))
     (doseq [[prev curr] (partition 2 1 top)]
       (bezier-normal ctx tx ty prev curr))
 
@@ -53,15 +48,29 @@
 
     (doseq [[prev curr] (partition 2 1 (reverse left))]
       (bezier-reverse ctx tx ty prev curr))
-    (.stroke ctx)
+    (-> ctx .closePath)))
+
+(defn draw-piece
+  [ctx image
+   {piece-width :piece-width
+    piece-height :piece-height :as cv}
+    chunk
+   [i j :as piece]
+   extra-dx extra-dy]
+  (let [[piece-x piece-y] (piece-location cv chunk piece)
+        [sx sy] [(* i piece-width) (* j piece-height)]
+        [tx ty] [(+ piece-x extra-dx) (+ piece-y extra-dy)]
+        [bx by] [(/ piece-width 2) (/ piece-height 2)]]
+    (create-piece-path ctx cv piece [tx ty])
     (doto ctx
-      (.save)
-      (.clip)
+      .stroke
+      .save
+      .clip
       (.drawImage
        image
        (- sx bx) (- sy by) (+ piece-width (* 2 bx)) (+ piece-height (* 2 by))
        (- tx bx) (- ty by) (+ piece-width (* 2 bx)) (+ piece-height (* 2 by)))
-      (.restore))))
+      .restore)))
 
 (defn draw-chunk
   [ctx image

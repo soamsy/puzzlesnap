@@ -67,8 +67,8 @@
   (rand-range (- n radius) (+ n radius)))
 
 (defn make-tab-xs []
-  (let [middle (rand-range 0.4 0.6)
-        radius (rand-range 0.08 0.14)
+  (let [middle (rand-range 0.42 0.58)
+        radius (rand-range 0.10 0.13)
         lside (wobble (- middle radius) 0.02)
         rside (wobble (+ middle radius) 0.02)
         lfloor (rand-close-to-middle 0 lside)
@@ -79,9 +79,9 @@
   (let [negate (if (< 0.5 (js/Math.random)) 1 -1)
         flip-y (partial * negate)
         xs (make-tab-xs)
-        ys [0.0 0.0 0.1 0.25 0.1 0.0 0.0]
-        cx2s (mapv + xs [0.0 -0.1 0.05 -0.1 0.05 -0.1 0.0])
-        cy2s (mapv + ys [0.0 0.0 -0.1 0.0 0.1 0.0 0.0])
+        ys [0.0 (wobble 0.0 0.02) (wobble 0.1 0.03) (wobble 0.27 0.03) (wobble 0.1 0.03) (wobble 0.0 0.02) 0.0]
+        cx2s (mapv + xs [0.0 (wobble -0.1 0.01) (wobble 0.05 0.01) (wobble -0.1 0.01) (wobble 0.05 0.01) (wobble -0.1 0.01) 0.0])
+        cy2s (mapv + ys [0.0 0.0 (wobble -0.12 0.01) 0.0 (wobble 0.12 0.01) 0.0 0.0])
         cx1s (mapv + xs (map - xs cx2s))
         cy1s (mapv + ys (map - ys cy2s))
         diff-x (- (+ end-offset-x scaler-x) start-offset-x)
@@ -99,31 +99,31 @@
   [{:keys [puzzle-width puzzle-height piece-width piece-height] :as cv}]
   (let [corners (vec2d (inc puzzle-width) (inc puzzle-height)
                        (fn [i j]
-                         (let [limit-x (/ piece-width 4)
-                               limit-y (/ piece-height 4)]
+                         (let [limit-x (/ piece-width 12)
+                               limit-y (/ piece-height 12)]
                            [(if (< 0 i puzzle-width)
-                              (- (* (js/Math.random) limit-x) (/ limit-x 2))
+                              (rand-range (- limit-x) limit-x)
                               0)
                             (if (< 0 j puzzle-height)
-                              (- (* (js/Math.random) limit-y) (/ limit-y 2))
+                              (rand-range (- limit-y) limit-y)
                               0)])))]
     (assoc cv :tabs
            {:top-bottom (vec2d puzzle-width (inc puzzle-height)
                                (fn [i j]
-                                 (let [start-offset (some-> corners (get i) (get j))
-                                       end-offset (some-> corners (get (inc i)) (get j))]
+                                 (let [start-offset (get-in corners [i j])
+                                       end-offset (get-in corners [(inc i) j])]
                                    (if (< 0 j puzzle-height)
-                                     (-> (create-tab piece-width piece-height start-offset end-offset))
+                                     (create-tab piece-width piece-height start-offset end-offset)
                                      [(translate-bezier (make-bezier-point [0 0]) start-offset)
                                       (translate-bezier (make-bezier-point [piece-width 0]) end-offset)]))))
             :left-right (vec2d (inc puzzle-width) puzzle-height
                                (fn [i j]
-                                 (let [[sx sy] (some-> corners (get i) (get j))
-                                       [ex ey] (some-> corners (get i) (get (inc j)))]
+                                 (let [start-offset (get-in corners [i j])
+                                       end-offset (get-in corners [i (inc j)])]
                                    (if (< 0 i puzzle-width)
-                                     (-> (mapv swap-xs-ys (create-tab piece-height piece-width [sy sx] [ey ex])))
-                                     [(translate-bezier (make-bezier-point [0 0]) [sx sy])
-                                      (translate-bezier (make-bezier-point [0 piece-height]) [ex ey])]))))})))
+                                     (mapv swap-xs-ys (create-tab piece-height piece-width (reverse start-offset) (reverse end-offset)))
+                                     [(translate-bezier (make-bezier-point [0 0]) start-offset)
+                                      (translate-bezier (make-bezier-point [0 piece-height]) end-offset)]))))})))
 
 (defn init-puzzle
   [cv]
