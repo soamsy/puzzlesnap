@@ -2,7 +2,7 @@
   (:require [puzzlesnap.db :refer [default-db]]
             [puzzlesnap.model :refer [init-puzzle mouse-down mouse-move
                                       mouse-up]]
-            [re-frame.core :refer [debug path reg-event-db reg-event-fx trim-v]]))
+            [re-frame.core :refer [debug path reg-event-db reg-event-fx reg-fx trim-v]]))
 
 (reg-event-fx
  :app/initialize
@@ -54,11 +54,22 @@
  (remove #{debug} update-interceptor)
  mouse-move)
 
-(reg-event-db
+(reg-event-fx
  :mouse-up
  update-interceptor
- (fn [db _]
-   (mouse-up db)))
+ (fn [{:keys [db]} _]
+   (let [before (-> db :shared :piece->chunk)
+         new-db (mouse-up db)
+         after (-> new-db :shared :piece->chunk)]
+     (merge
+      {:db new-db}
+      (if (= before after) nil {:play-sound []})))))
+
+(reg-fx
+ :play-sound
+ (fn [_]
+   (let [el (-> js/document (.getElementById "snap-sound"))]
+     (.play el))))
 
 (reg-event-db
  :mouse-wheel

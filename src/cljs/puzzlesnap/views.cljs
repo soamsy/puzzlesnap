@@ -19,7 +19,8 @@
      [:div#nav-menu.navbar-menu
       {:class (when @expanded? :is-active)}
       [:div.navbar-start
-       [:button {:on-click #(rf/dispatch [:bad-click])} "click me"]]]]))
+       [:button {:on-click #(rf/dispatch [:bad-click])} "click me"]]]
+     [:audio {:id "snap-sound" :src "/audio/pop.wav" :preload ""}]]))
 
 (defn offset-coords [canvas x y]
    [(- x (.-offsetLeft canvas))

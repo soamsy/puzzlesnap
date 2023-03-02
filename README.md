@@ -15,3 +15,9 @@ You will need [Leiningen][1] 2.0 or above installed.
 To start a web server for the application, run:
 
     lein run 
+
+# TODO
+Make it so pieces can snap to multiple pieces around it if they're surrounded
+Implement rotation
+Make visually more appealing tabs
+Make stroke outline more shadow based
