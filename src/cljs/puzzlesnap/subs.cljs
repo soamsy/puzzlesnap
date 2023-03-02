@@ -3,9 +3,13 @@
 
 ;;subscriptions
 (rf/reg-sub
- :canvas
- #(get-in % [:canvas]))
+ :db
+ identity)
 
 (rf/reg-sub
- :canvas/image-uri
- #(get-in % [:canvas :image-uri]))
+ :global
+ #(get-in % [:global]))
+
+(rf/reg-sub
+ :global/image-uri
+ #(get-in % [:global :image-uri]))

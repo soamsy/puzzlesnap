@@ -22,7 +22,7 @@
        [:button {:on-click #(rf/dispatch [:bad-click])} "click me"]]]]))
 
 (defn offset-coords [canvas x y]
-   [(- x (.-offsetLeft canvas)) 
+   [(- x (.-offsetLeft canvas))
     (- y (.-offsetTop canvas))])
 
 (defn on-mouse-down [[x y] pan?]
@@ -43,7 +43,7 @@
 (defn init-canvas [canvas]
   (let [getTouch (fn [e] (aget (.-touches e) 0))]
     (doto canvas
-      (.addEventListener "mousedown" #(do (js/console.log %) (on-mouse-down (offset-coords canvas (.-x %) (.-y %)) (#{2 4} (.-buttons %)))))
+      (.addEventListener "mousedown" #(on-mouse-down (offset-coords canvas (.-x %) (.-y %)) (#{2 4} (.-buttons %))))
       (.addEventListener "mousemove" #(on-mouse-move (offset-coords canvas (.-x %) (.-y %))))
       (.addEventListener "touchstart" #(on-mouse-down
                                         (offset-coords
@@ -63,24 +63,24 @@
 
 (defn canvas-inner [img-ref]
   (let [canvas-ref (atom nil)
-        cv (rf/subscribe [:canvas])]
+        db (rf/subscribe [:db])]
     (r/create-class
      {:reagent-render
       (fn []
-        @cv
+        @db
         [:canvas.canvas-inner {:ref #(reset! canvas-ref %)}])
       :component-did-mount
       (fn []
         (init-canvas @canvas-ref))
       :component-did-update
       (fn []
-        (update-canvas @cv @canvas-ref @img-ref))
+        (update-canvas @db @canvas-ref @img-ref))
       :display-name "canvas-inner"})))
 
 (defn canvas-outer []
   (r/with-let
-    [image-uri (rf/subscribe [:canvas/image-uri])
-     resizeHandler #(rf/dispatch [:canvas-tick])
+    [image-uri (rf/subscribe [:global/image-uri])
+     resizeHandler #(rf/dispatch [:local-tick])
      _ (.addEventListener js/window "resize" resizeHandler)]
     (let [img-ref (atom nil)]
       [:section.canvas-outer

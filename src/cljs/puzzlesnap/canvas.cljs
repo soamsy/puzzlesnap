@@ -25,9 +25,8 @@
 
 (defn create-piece-path
   [ctx
-   {piece-width :piece-width
-    piece-height :piece-height
-    {:keys [left-right top-bottom]} :tabs :as cv}
+   {{:keys [piece-width piece-height]} :local
+    {{:keys [left-right top-bottom]} :tabs} :global :as db}
    [i j]
    [tx ty]]
   (let [top (some-> top-bottom (get i) (get j))
@@ -52,16 +51,16 @@
 
 (defn draw-piece
   [ctx image
-   {piece-width :piece-width
-    piece-height :piece-height :as cv}
+   {{piece-width :piece-width
+     piece-height :piece-height :as ldb} :local :as db}
     chunk
    [i j :as piece]
    extra-dx extra-dy]
-  (let [[piece-x piece-y] (piece-location cv chunk piece)
+  (let [[piece-x piece-y] (piece-location ldb chunk piece)
         [sx sy] [(* i piece-width) (* j piece-height)]
         [tx ty] [(+ piece-x extra-dx) (+ piece-y extra-dy)]
         [bx by] [(/ piece-width 2) (/ piece-height 2)]]
-    (create-piece-path ctx cv piece [tx ty])
+    (create-piece-path ctx db piece [tx ty])
     (doto ctx
       .stroke
       .save
@@ -74,18 +73,19 @@
 
 (defn draw-chunk
   [ctx image
-   {:keys [drag-chunk
-           drag-chunk-dx drag-chunk-dy
-           pan-dx pan-dy] :as cv}
+   {{:keys [pan-dx pan-dy] :as ldb} :local
+    {:keys [draggers] :as sdb} :shared :as db}
    {:keys [piece-grid index] :as chunk}]
-  (let [[drag-dx drag-dy] (if (= drag-chunk index)
-                            [drag-chunk-dx drag-chunk-dy]
+  (let [drag (first (filter #(= (:drag-chunk %) index) (vals draggers)))
+        [drag-dx drag-dy] (if drag
+                            [(:drag-chunk-dx drag) (:drag-chunk-dy drag)]
                             [0 0])]
     (doseq [piece piece-grid]
-      (draw-piece ctx image cv chunk piece (+ pan-dx drag-dx) (+ pan-dy drag-dy)))))
+      (draw-piece ctx image db chunk piece (+ pan-dx drag-dx) (+ pan-dy drag-dy)))))
 
 (defn update-canvas
-  [{:keys [left top scale chunks chunk-order] :as cv}
+  [{{:keys [left top scale] :as ldb} :local
+    {:keys [chunks chunk-order] :as sdb} :shared :as db}
    canvasNode
    image]
   (when (and canvasNode image (image-loaded? image))
@@ -94,7 +94,7 @@
       (when (not= w (.-width canvasNode))
         (set! (.-width canvasNode) w))
       (when (not= h (.-height canvasNode))
-        (set! (.-height canvasNode) h)) 
+        (set! (.-height canvasNode) h))
       (set! (.-lineJoin ctx) "round")
       (set! (.-lineWidth ctx) 0.01)
       (doto ctx
@@ -103,6 +103,6 @@
         (.scale scale scale)
         (.translate left top))
       (doseq [i chunk-order]
-        (draw-chunk ctx image cv (get chunks i)))
+        (draw-chunk ctx image db (get chunks i)))
       (doto ctx
         (.restore)))))
