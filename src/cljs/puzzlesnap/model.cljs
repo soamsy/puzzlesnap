@@ -235,7 +235,7 @@
                    {:keys [id] :as udb} :user :as db} [x y]]
   (let [{:keys [drag-chunk-start-x drag-chunk-start-y]} (get draggers id)]
     (cond
-      is-panning (update
+      is-panning (update-in
                   db
                   [:local]
                   #(merge % {:pan-dx (/ (- x pan-start-x) scale)
