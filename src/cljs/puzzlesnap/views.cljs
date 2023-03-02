@@ -80,8 +80,10 @@
 (defn canvas-outer []
   (r/with-let
     [image-uri (rf/subscribe [:global/image-uri])
-     resizeHandler #(rf/dispatch [:local-tick])
-     _ (.addEventListener js/window "resize" resizeHandler)]
+     resize-handler #(rf/dispatch [:local-tick])
+     _ (.addEventListener js/window "resize" resize-handler)
+     no-context-menu #(.preventDefault %)
+     _ (.addEventListener js/document "contextmenu" no-context-menu)]
     (let [img-ref (atom nil)]
       [:section.canvas-outer
        [(canvas-inner img-ref)]
@@ -90,7 +92,8 @@
               :src @image-uri
               :style {:display "none"}
               :on-load #(rf/dispatch [:image-loaded @img-ref])}]])
-    (finally (.removeEventListener js/window "resize" resizeHandler))))
+    (finally (.removeEventListener js/window "resize" resize-handler)
+             (.removeEventListener js/document "contextmenu" no-context-menu))))
 
 (defn page []
   [:div.full
