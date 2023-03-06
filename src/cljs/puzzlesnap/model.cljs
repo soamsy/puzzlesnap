@@ -195,7 +195,8 @@
       (-> sdb
           (update-in [:chunks (:index chosen-chunk) :piece-grid] (partial set/union piece-grid))
           (assoc-in [:chunks (:index dropped-chunk) :piece-grid] #{})
-          (assoc-in [:piece->chunk] (merge piece->chunk (into {} (map #(vector %1 (:index chosen-chunk)) piece-grid)))))
+          (assoc-in [:piece->chunk] (merge piece->chunk (into {} (map #(vector %1 (:index chosen-chunk)) piece-grid))))
+          (merge-chunks ldb (:index chosen-chunk)))
       sdb)))
 
 (defn deep-merge-with [f & maps]

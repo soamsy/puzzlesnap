@@ -4,7 +4,7 @@
   {:user {:id "userId1" :name "Cantaloupe"}
    :global {:draw-size 100
             :image-uri "/img/puzzle.jpg"
-            :puzzle-width 2
+            :puzzle-width 3
             :puzzle-height 2}
    :local {:id 0
            :left 100
