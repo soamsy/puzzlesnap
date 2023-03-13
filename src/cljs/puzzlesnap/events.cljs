@@ -81,12 +81,6 @@
        :top (+ top (/ (- y new-y) new-scale))}))))
 
 (reg-event-fx
- :right-click
- update-interceptor
- (fn [{:keys [db]} [x y]]
-   (rotate-x-y db x y 1)))
-
-(reg-event-fx
  :rotate-piece
  [debug trim-v]
  (fn [{:keys [db]} [chunk-index]]

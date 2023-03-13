@@ -306,8 +306,9 @@
    :dispatch [:rotate-piece chunk-index]})
 
 (defn rotate-x-y [db x y direction]
-  (when-let [chunk (find-chunk db [x y])]
-    (rotate-chunk db (:index chunk) direction)))
+  (if-let [c (find-chunk db [x y])]
+    (rotate-chunk db (:index c) direction)
+    {:db db}))
 
 (defn mouse-up [{{:keys [has-panned pan-start-x pan-start-y] :as ldb} :local
                  {:keys [draggers] :as sdb} :shared
