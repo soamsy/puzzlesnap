@@ -175,8 +175,8 @@
                        (:rotation a-chunk))
         [x-dist y-dist] (map #(js/Math.abs (- %1 %2)) (map - b-loc a-loc) [x-exp y-exp])
         top-bottom-snap? (zero? x-exp)
-        x-tolerance (/ piece-width (if top-bottom-snap? 5 12))
-        y-tolerance (/ piece-height (if top-bottom-snap? 12 5))]
+        [x-tolerance y-tolerance] [(/ piece-width (if top-bottom-snap? 7 10)) 
+                                   (/ piece-height (if top-bottom-snap? 10 7))]]
     (when (and
            (= (:rotation b-chunk) (:rotation a-chunk))
            (not= (:index b-chunk) (:index a-chunk))
@@ -218,6 +218,15 @@
           (merge-chunks ldb (:index chosen-chunk)))
       sdb)))
 
+(defn rotate-chunk [db chunk-index direction]
+  {:db (update-in db [:shared :chunks chunk-index :rotation] #(mod (+ % direction) 4))
+   :dispatch [:rotate-piece chunk-index]})
+
+(defn rotate-x-y [db x y direction]
+  (if-let [c (find-chunk db [x y])]
+    (rotate-chunk db (:index c) direction)
+    {:db db}))
+
 (defn deep-merge-with [f & maps]
   (apply
    (fn m [& maps]
@@ -228,29 +237,31 @@
 
 (def deep-merge (partial deep-merge-with (fn [& vals] (last vals))))
 
-(defn mouse-down [{{:keys [chunk-order] :as sdb} :shared
+(defn mouse-down [{{:keys [chunk-order draggers] :as sdb} :shared
                    {:keys [id] :as udb} :user :as db}
-                  [x y pan?]]
-  (->
-   (deep-merge
-    db
-    (if pan?
-      {:local {:is-panning true
-               :has-panned false
-               :pan-start-x x
-               :pan-start-y y}}
-      (when-let [chunk (find-chunk db [x y])]
-        {:shared
-         {:draggers {id {:drag-chunk (:index chunk)
-                         :drag-chunk-start-x x
-                         :drag-chunk-start-y y
-                         :dragged false}}
-          :chunk-order (let [i (.indexOf chunk-order (:index chunk))]
-                         (vec
-                          (concat
-                           (subvec chunk-order 0 i)
-                           (subvec chunk-order (inc i) (count chunk-order))
-                           [(nth chunk-order i)])))}})))))
+                  x y buttons]
+  (cond
+    (#{2 4} buttons) {:db (deep-merge
+                           db {:local {:is-panning true
+                                       :pan-start-x x
+                                       :pan-start-y y}})}
+    (= buttons 3)   (when-let [{:keys [drag-chunk]} (get draggers id)]
+                      (rotate-chunk db drag-chunk 1))
+    :else (when-let [chunk (find-chunk db [x y])]
+            {:db
+             (deep-merge
+              db
+              {:shared
+               {:draggers {id {:drag-chunk (:index chunk)
+                               :drag-chunk-start-x x
+                               :drag-chunk-start-y y
+                               :dragged false}}
+                :chunk-order (let [i (.indexOf chunk-order (:index chunk))]
+                               (vec
+                                (concat
+                                 (subvec chunk-order 0 i)
+                                 (subvec chunk-order (inc i) (count chunk-order))
+                                 [(nth chunk-order i)])))}})})))
 
 (defn mouse-move [{{:keys [is-panning pan-start-x pan-start-y scale] :as ldb} :local
                    {:keys [draggers] :as sdb} :shared
@@ -276,6 +287,7 @@
   (-> db
       (deep-merge
        {:local {:is-panning false
+                :has-panned false
                 :pan-start-x 0
                 :pan-start-y 0
                 :left (+ left pan-dx)
@@ -301,23 +313,15 @@
     {:db new-db}
     (if (not= before after) {:play-sound []} {}))))
 
-(defn rotate-chunk [db chunk-index direction]
-  {:db (update-in db [:shared :chunks chunk-index :rotation] #(mod (+ % direction) 4))
-   :dispatch [:rotate-piece chunk-index]})
-
-(defn rotate-x-y [db x y direction]
-  (if-let [c (find-chunk db [x y])]
-    (rotate-chunk db (:index c) direction)
-    {:db db}))
-
 (defn mouse-up [{{:keys [has-panned pan-start-x pan-start-y] :as ldb} :local
                  {:keys [draggers] :as sdb} :shared
                  {:keys [id] :as udb} :user :as db}
-                right-click?]
+                button]
   (let [{:keys [drag-chunk drag-chunk-dx drag-chunk-dy dragged]} (get draggers id)
-        clean-db (assoc-in (finish-pan db) [:shared :draggers] {})]
-    (cond (and drag-chunk (not dragged)) (rotate-chunk clean-db drag-chunk (if right-click? 1 -1))
-          drag-chunk (finish-drag clean-db drag-chunk drag-chunk-dx drag-chunk-dy)
-          (and (not has-panned) right-click?) (rotate-x-y clean-db pan-start-x pan-start-y 1)
-          :else {:db clean-db})))
+        panned-db (finish-pan db)
+        no-draggers (assoc-in panned-db [:shared :draggers] {})]
+    (cond (and drag-chunk (not dragged)) (rotate-chunk no-draggers drag-chunk (if (= button 2) 1 -1))
+          (and (not= button 2) drag-chunk) (finish-drag no-draggers drag-chunk drag-chunk-dx drag-chunk-dy)
+          (and (= button 2) (not has-panned) (not drag-chunk)) (rotate-x-y panned-db pan-start-x pan-start-y 1)
+          :else {:db panned-db})))
 

@@ -10,6 +10,7 @@
            :left 100
            :top 100
            :is-panning false
+           :has-panned false
            :pan-start-x 0
            :pan-start-y 0
            :pan-dx 0

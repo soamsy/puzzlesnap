@@ -43,10 +43,11 @@
        (update :local #(init-image-state % puzzle-width puzzle-height img))
        (init-puzzle)))))
 
-(reg-event-db
+(reg-event-fx
  :mouse-down
  update-interceptor
- mouse-down)
+ (fn [{:keys [db]} [x y buttons]]
+   (mouse-down db x y buttons)))
 
 (reg-event-db
  :mouse-move
@@ -56,8 +57,8 @@
 (reg-event-fx
  :mouse-up
  update-interceptor
- (fn [{:keys [db]} [right-click?]]
-   (mouse-up db right-click?)))
+ (fn [{:keys [db]} [button]]
+   (mouse-up db button)))
 
 (reg-fx
  :play-sound

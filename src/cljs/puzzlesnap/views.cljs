@@ -26,14 +26,14 @@
    [(- x (.-offsetLeft canvas))
     (- y (.-offsetTop canvas))])
 
-(defn on-mouse-down [[x y] pan?]
-  (rf/dispatch [:mouse-down x y pan?]))
+(defn on-mouse-down [[x y] buttons]
+  (rf/dispatch [:mouse-down x y buttons]))
 
 (defn on-mouse-move [[x y]]
   (rf/dispatch [:mouse-move x y]))
 
-(defn on-mouse-up [right-click?]
-  (rf/dispatch [:mouse-up right-click?]))
+(defn on-mouse-up [button]
+  (rf/dispatch [:mouse-up button]))
 
 (defn on-mouse-out [x y]
   (on-mouse-up false))
@@ -44,21 +44,23 @@
 (defn init-canvas [canvas]
   (let [getTouch (fn [e] (aget (.-touches e) 0))]
     (doto canvas
-      (.addEventListener "mousedown" #(on-mouse-down (offset-coords canvas (.-x %) (.-y %)) (#{2 4} (.-buttons %))))
+      (.addEventListener "mousedown" #(on-mouse-down 
+                                       (offset-coords canvas (.-x %) (.-y %)) 
+                                       (.-buttons %)))
       (.addEventListener "mousemove" #(on-mouse-move (offset-coords canvas (.-x %) (.-y %))))
-      (.addEventListener "touchstart" #(on-mouse-down
+      #_(.addEventListener "touchstart" #(on-mouse-down
                                         (offset-coords
                                          canvas
                                          (-> % getTouch .-clientX)
                                          (-> % getTouch .-clientY))
                                         true) #js {:passive true})
-      (.addEventListener "touchmove" #(on-mouse-move
+      #_(.addEventListener "touchmove" #(on-mouse-move
                                        (offset-coords
                                         canvas
                                         (-> % getTouch .-clientX)
                                         (-> % getTouch .-clientY))) #js {:passive true})
-      (.addEventListener "mouseup" #(on-mouse-up (= 2 (.-button %))))
-      (.addEventListener "touchend" #(on-mouse-up true))
+      (.addEventListener "mouseup" #(on-mouse-up (.-button %)))
+      #_(.addEventListener "touchend" #(on-mouse-up true))
       (.addEventListener "mouseout" #(on-mouse-out (.-pageX %) (.-pageY %)))
       (.addEventListener "mousewheel" #(on-mouse-wheel (.-clientX %) (.-clientY %) (.-deltaY %))))))
 
