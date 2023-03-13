@@ -1,7 +1,6 @@
 (ns puzzlesnap.events
   (:require [puzzlesnap.db :refer [default-db]]
-            [puzzlesnap.model :refer [init-puzzle mouse-down mouse-move
-                                      mouse-up]]
+            [puzzlesnap.model :refer [init-puzzle mouse-down mouse-move mouse-up rotate-x-y]]
             [re-frame.core :refer [debug path reg-event-db reg-event-fx reg-fx trim-v]]))
 
 (reg-event-fx
@@ -57,13 +56,8 @@
 (reg-event-fx
  :mouse-up
  update-interceptor
- (fn [{:keys [db]} _]
-   (let [before (-> db :shared :piece->chunk)
-         new-db (mouse-up db)
-         after (-> new-db :shared :piece->chunk)]
-     (merge
-      {:db new-db}
-      (if (= before after) nil {:play-sound []})))))
+ (fn [{:keys [db]} [right-click?]]
+   (mouse-up db right-click?)))
 
 (reg-fx
  :play-sound
@@ -85,6 +79,27 @@
       {:scale new-scale
        :left (+ left (/ (- x new-x) new-scale))
        :top (+ top (/ (- y new-y) new-scale))}))))
+
+(reg-event-fx
+ :right-click
+ update-interceptor
+ (fn [{:keys [db]} [x y]]
+   (rotate-x-y db x y 1)))
+
+(reg-event-fx
+ :rotate-piece
+ [debug trim-v]
+ (fn [{:keys [db]} [chunk-index]]
+   (let [chunk (get-in db [:shared :chunks chunk-index])
+         angle (get-in db [:local :rotations chunk-index])
+         target-angle (* (/ js/Math.PI 2) (get chunk :rotation))
+         diff (mod (- target-angle angle) (* 2 js/Math.PI))
+         tick (/ js/Math.PI 16)
+         should-stop (< diff tick)]
+     (if should-stop
+       {:db (assoc-in db [:local :rotations chunk-index] target-angle)}
+       {:db (assoc-in db [:local :rotations chunk-index] (+ angle (if (< (+ js/Math.PI 0.001) diff) (- tick) tick)))
+        :dispatch-later {:ms 16 :dispatch [:rotate-piece chunk-index]}}))))
 
 (reg-event-db
   :common/set-error

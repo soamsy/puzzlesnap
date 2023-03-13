@@ -32,11 +32,11 @@
 (defn on-mouse-move [[x y]]
   (rf/dispatch [:mouse-move x y]))
 
-(defn on-mouse-up []
-  (rf/dispatch [:mouse-up]))
+(defn on-mouse-up [right-click?]
+  (rf/dispatch [:mouse-up right-click?]))
 
 (defn on-mouse-out [x y]
-  (on-mouse-up))
+  (on-mouse-up false))
 
 (defn on-mouse-wheel [x y deltaY]
   (rf/dispatch [:mouse-wheel x y deltaY]))
@@ -57,8 +57,8 @@
                                         canvas
                                         (-> % getTouch .-clientX)
                                         (-> % getTouch .-clientY))) #js {:passive true})
-      (.addEventListener "mouseup" #(on-mouse-up))
-      (.addEventListener "touchend" #(on-mouse-up))
+      (.addEventListener "mouseup" #(on-mouse-up (= 2 (.-button %))))
+      (.addEventListener "touchend" #(on-mouse-up true))
       (.addEventListener "mouseout" #(on-mouse-out (.-pageX %) (.-pageY %)))
       (.addEventListener "mousewheel" #(on-mouse-wheel (.-clientX %) (.-clientY %) (.-deltaY %))))))
 
@@ -69,7 +69,7 @@
      {:reagent-render
       (fn []
         @db
-        [:canvas.canvas-inner {:ref #(reset! canvas-ref %)}])
+        [:canvas#canvas-inner {:ref #(reset! canvas-ref %)}])
       :component-did-mount
       (fn []
         (init-canvas @canvas-ref))

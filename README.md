@@ -17,7 +17,6 @@ To start a web server for the application, run:
     lein run 
 
 # TODO
-Make it so pieces can snap to multiple pieces around it if they're surrounded
-Implement rotation
 Make visually more appealing tabs
 Make stroke outline more shadow based
+Disengage drag-and drop when dragging into the top bar

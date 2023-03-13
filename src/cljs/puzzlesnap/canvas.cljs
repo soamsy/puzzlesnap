@@ -1,5 +1,5 @@
 (ns puzzlesnap.canvas
-  (:require [puzzlesnap.model :refer [piece-location]]))
+  (:require [puzzlesnap.grid :refer [chunk-center piece-loc]]))
 
 (defn get-dimensions [node]
   (let [r (.getBoundingClientRect node)]
@@ -53,12 +53,10 @@
   [ctx image
    {{piece-width :piece-width
      piece-height :piece-height :as ldb} :local :as db}
-    chunk
-   [i j :as piece]
-   extra-dx extra-dy]
-  (let [[piece-x piece-y] (piece-location ldb chunk piece)
+   chunk
+   [i j :as piece]]
+  (let [[tx ty] (piece-loc ldb chunk piece)
         [sx sy] [(* i piece-width) (* j piece-height)]
-        [tx ty] [(+ piece-x extra-dx) (+ piece-y extra-dy)]
         [bx by] [(/ piece-width 2) (/ piece-height 2)]]
     (create-piece-path ctx db piece [tx ty])
     (doto ctx
@@ -71,21 +69,57 @@
        (- tx bx) (- ty by) (+ piece-width (* 2 bx)) (+ piece-height (* 2 by)))
       .restore)))
 
-(defn draw-chunk
-  [ctx image
-   {{:keys [pan-dx pan-dy] :as ldb} :local
+(defn handle-chunk
+  [ctx
+   {{:keys [pan-dx pan-dy rotations] :as ldb} :local
     {:keys [draggers] :as sdb} :shared :as db}
-   {:keys [piece-grid index] :as chunk}]
-  (let [drag (first (filter #(= (:drag-chunk %) index) (vals draggers)))
-        [drag-dx drag-dy] (if drag
-                            [(:drag-chunk-dx drag) (:drag-chunk-dy drag)]
-                            [0 0])]
-    (doseq [piece piece-grid]
-      (draw-piece ctx image db chunk piece (+ pan-dx drag-dx) (+ pan-dy drag-dy)))))
+   {:keys [piece-grid index loc-x loc-y] :as chunk}
+   piece-handler]
+   (when (not (empty? piece-grid))
+     (let [drag (first (filter #(= (:drag-chunk %) index) (vals draggers)))
+           [drag-dx drag-dy] (if drag
+                               [(:drag-chunk-dx drag) (:drag-chunk-dy drag)]
+                               [0 0])
+           [cx cy] (chunk-center ldb chunk)]
+       (.save ctx)
+       (.translate ctx (+ loc-x cx pan-dx drag-dx) (+ loc-y cy pan-dy drag-dy))
+       (.rotate ctx (get rotations index))
+       (.translate ctx (- 0 loc-x cx) (- 0 loc-y cy))
+       (let [result (doall (for [piece piece-grid] (piece-handler chunk piece)))]
+         (.restore ctx)
+         result))))
+
+(defn handle-chunks
+  [ctx
+   {{:keys [left top scale] :as ldb} :local
+    {:keys [chunks chunk-order] :as sdb} :shared :as db}
+   piece-handler]
+  (doto ctx
+    (.save)
+    (.scale scale scale)
+    (.translate left top))
+  (let
+   [result (doall
+            (for [i chunk-order]
+              (let [chunk (get chunks i)]
+                (handle-chunk ctx db chunk piece-handler))))]
+    (.restore ctx)
+    result))
+
+(defn find-chunk-by-point
+  [ctx
+   {ldb :local :as db}
+   [x y]]
+  (letfn
+   [(trace
+      [chunk piece]
+      (create-piece-path ctx db piece (piece-loc ldb chunk piece))
+      (when (.isPointInPath ctx x y)
+        chunk))]
+    (last (remove nil? (flatten (handle-chunks ctx db trace))))))
 
 (defn update-canvas
-  [{{:keys [left top scale] :as ldb} :local
-    {:keys [chunks chunk-order] :as sdb} :shared :as db}
+  [db
    canvasNode
    image]
   (when (and canvasNode image (image-loaded? image))
@@ -97,12 +131,5 @@
         (set! (.-height canvasNode) h))
       (set! (.-lineJoin ctx) "round")
       (set! (.-lineWidth ctx) 0.01)
-      (doto ctx
-        (.save)
-        (.clearRect 0 0 w h)
-        (.scale scale scale)
-        (.translate left top))
-      (doseq [i chunk-order]
-        (draw-chunk ctx image db (get chunks i)))
-      (doto ctx
-        (.restore)))))
+      (.clearRect ctx 0 0 w h)
+      (handle-chunks ctx db #(draw-piece ctx image db %1 %2)))))

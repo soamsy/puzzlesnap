@@ -1,5 +1,7 @@
 (ns puzzlesnap.model
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [puzzlesnap.canvas :refer [find-chunk-by-point]]
+            [puzzlesnap.grid :refer [chunk-center]]))
 
 (defn init-chunks
   [sdb
@@ -22,7 +24,8 @@
          :index (+ (* i puzzle-height) j)
          :piece-grid #{[i j]}
          :main-piece-i i
-         :main-piece-j j})))))
+         :main-piece-j j
+         :rotation 0})))))
 
 (defn init-piece-to-chunk
   [{chunks :chunks :as sdb}]
@@ -87,11 +90,11 @@
         slope (/ diff-y diff-x)
         calc-x (fn [x] (+ start-offset-x (* x diff-x)))
         calc-y (fn [x y] (+ (* y scaler-y) start-offset-y (* x diff-x slope)))]
-        (mapv (fn [x y cx1 cy1 cx2 cy2]
-                {:x (calc-x x) :y (calc-y x (flip-y y))
-                 :cx1 (calc-x cx1) :cy1 (calc-y cx1 (flip-y cy1))
-                 :cx2 (calc-x cx2) :cy2 (calc-y cx2 (flip-y cy2))})
-              xs ys cx1s cy1s cx2s cy2s)))
+       (mapv (fn [x y cx1 cy1 cx2 cy2]
+               {:x (calc-x x) :y (calc-y x (flip-y y))
+                :cx1 (calc-x cx1) :cy1 (calc-y cx1 (flip-y cy1))
+                :cx2 (calc-x cx2) :cy2 (calc-y cx2 (flip-y cy2))})
+             xs ys cx1s cy1s cx2s cy2s)))
 
 (defn init-tabs
   [{{:keys [puzzle-width puzzle-height]} :global
@@ -131,29 +134,30 @@
    (update :shared init-chunks db)
    (update :shared init-piece-to-chunk)
    (update :shared init-chunk-order)
-   (init-tabs)))
+   (init-tabs)
+   (#(assoc-in % [:local :rotations] (vec (repeat (count (get-in % [:shared :chunks])) 0))))))
+   
+
+(defn rotate-by [[x y] turns]
+  (if (zero? turns)
+    [x y]
+    (rotate-by [(- y) x] (dec turns))))
+
+(defn rotate-around [orig coords turns]
+  (mapv + orig (rotate-by (map - coords orig) turns)))
 
 (defn piece-location [{:keys [piece-width piece-height] :as ldb}
-                      {:keys [loc-x loc-y main-piece-i main-piece-j] :as chunk}
+                      {:keys [loc-x loc-y main-piece-i main-piece-j rotation] :as chunk}
                       [i j]]
-  [(+ loc-x (* piece-width (- i main-piece-i)))
-   (+ loc-y (* piece-height (- j main-piece-j)))])
+  (let [[cx cy] (chunk-center ldb chunk)
+        [x y] [(+  (* piece-width (- i main-piece-i)))
+               (+  (* piece-height (- j main-piece-j)))]]
+    (mapv + [loc-x loc-y] (rotate-around [cx cy] [x y] rotation))))
 
-(defn translate-mouse-coords [{:keys [left top scale]} [x y]]
-  [(- (/ x scale) left) (- (/ y scale) top)])
-
-(defn find-chunk [{{:keys [chunks chunk-order]} :shared
-                   {:keys [piece-width piece-height] :as ldb} :local :as db} [mx my]]
-  (letfn [(contains-coords?
-           [{:keys [piece-grid] :as chunk}]
-           (some
-            (fn [piece]
-              (let [[piece-x piece-y] (piece-location ldb chunk piece)]
-                (and
-                 (< piece-x mx (+ piece-x piece-width))
-                 (< piece-y my (+ piece-y piece-height)))))
-            piece-grid))]
-    (first (filter contains-coords? (map chunks chunk-order)))))
+(defn find-chunk [db [mx my]]
+  (let [canvas (js/document.getElementById "canvas-inner")
+        ctx (.getContext canvas "2d")]
+    (find-chunk-by-point ctx db [mx my])))
 
 (def dirs [[0 -1]
            [0 1]
@@ -161,21 +165,35 @@
            [1 0]])
 
 (defn detect-neighbor [{:keys [piece-width piece-height] :as ldb}
-                       dropped-chunk dropped-piece
-                       neighbor-chunk neighbor]
-  (let [neighbor-loc (piece-location ldb neighbor-chunk neighbor)
-        expected-loc (piece-location ldb dropped-chunk neighbor)
-        [i-dir j-dir] (map - neighbor dropped-piece)
-        [x-dist y-dist] (map #(js/Math.abs (- %1 %2)) neighbor-loc expected-loc)
-        top-bottom-snap? (zero? i-dir)
+                       a-chunk a-piece
+                       b-chunk b-piece]
+  (let [a-loc (piece-location ldb a-chunk a-piece)
+        b-loc (piece-location ldb b-chunk b-piece)
+        [i j] (map - b-piece a-piece)
+        [x-exp y-exp] (rotate-by
+                       (map * [piece-width piece-height] [i j])
+                       (:rotation a-chunk))
+        [x-dist y-dist] (map #(js/Math.abs (- %1 %2)) (map - b-loc a-loc) [x-exp y-exp])
+        top-bottom-snap? (zero? x-exp)
         x-tolerance (/ piece-width (if top-bottom-snap? 5 12))
         y-tolerance (/ piece-height (if top-bottom-snap? 12 5))]
     (when (and
-           (not= (:index neighbor-chunk) (:index dropped-chunk))
+           (= (:rotation b-chunk) (:rotation a-chunk))
+           (not= (:index b-chunk) (:index a-chunk))
            (< x-dist x-tolerance)
            (< y-dist y-tolerance))
-      {:chunk neighbor-chunk
+      {:chunk b-chunk
        :dist (if top-bottom-snap? y-dist x-dist)})))
+
+
+(defn offset-chunk-post-merge [ldb old-chunk new-chunk]
+  (let [piece (first (:piece-grid old-chunk))
+        [cx-diff cy-diff] (map -
+                               (piece-location ldb new-chunk piece)
+                               (piece-location ldb old-chunk piece))]
+    (-> new-chunk
+        (update :loc-x #(- % cx-diff))
+        (update :loc-y #(- % cy-diff)))))
 
 (defn merge-chunks [{:keys [chunks piece->chunk] :as sdb} ldb dropped-chunk-index]
   (let [dropped-chunk (get chunks dropped-chunk-index)
@@ -196,6 +214,7 @@
           (update-in [:chunks (:index chosen-chunk) :piece-grid] (partial set/union piece-grid))
           (assoc-in [:chunks (:index dropped-chunk) :piece-grid] #{})
           (assoc-in [:piece->chunk] (merge piece->chunk (into {} (map #(vector %1 (:index chosen-chunk)) piece-grid))))
+          (update-in [:chunks (:index chosen-chunk)] #(offset-chunk-post-merge ldb chosen-chunk %))
           (merge-chunks ldb (:index chosen-chunk)))
       sdb)))
 
@@ -217,13 +236,15 @@
     db
     (if pan?
       {:local {:is-panning true
+               :has-panned false
                :pan-start-x x
                :pan-start-y y}}
-      (when-let [chunk (find-chunk db (translate-mouse-coords (:local db) [x y]))]
+      (when-let [chunk (find-chunk db [x y])]
         {:shared
          {:draggers {id {:drag-chunk (:index chunk)
                          :drag-chunk-start-x x
-                         :drag-chunk-start-y y}}
+                         :drag-chunk-start-y y
+                         :dragged false}}
           :chunk-order (let [i (.indexOf chunk-order (:index chunk))]
                          (vec
                           (concat
@@ -240,35 +261,62 @@
                   db
                   [:local]
                   #(merge % {:pan-dx (/ (- x pan-start-x) scale)
-                             :pan-dy (/ (- y pan-start-y) scale)}))
+                             :pan-dy (/ (- y pan-start-y) scale)
+                             :has-panned true}))
       (get draggers id) (update-in
                          db
                          [:shared :draggers id]
                          #(merge % {:drag-chunk-dx (/ (- x drag-chunk-start-x) scale)
-                                    :drag-chunk-dy (/ (- y drag-chunk-start-y) scale)}))
+                                    :drag-chunk-dy (/ (- y drag-chunk-start-y) scale)
+                                    :dragged true}))
       :else db)))
 
 
-(defn mouse-up [{{:keys [left top pan-dx pan-dy] :as ldb} :local
-                 {:keys [chunks draggers] :as sdb} :shared
-                 {:keys [id] :as udb} :user :as db}]
-  (let [{:keys [drag-chunk drag-chunk-dx drag-chunk-dy]} (get draggers id)
-        new-chunks (if drag-chunk
-                     (-> chunks
-                         (update-in [drag-chunk :loc-x] (partial + drag-chunk-dx))
-                         (update-in [drag-chunk :loc-y] (partial + drag-chunk-dy)))
-                     chunks)]
-    (-> db
-        (deep-merge
-         {:local {:is-panning false
-                  :pan-start-x 0
-                  :pan-start-y 0
-                  :left (+ left pan-dx)
-                  :top (+ top pan-dy)
-                  :pan-dx 0
-                  :pan-dy 0}
-          :shared {:chunks new-chunks}})
-        (update-in [:shared :draggers] #(dissoc % id))
-        ((fn [db] (if drag-chunk
-                      (update db :shared #(merge-chunks % ldb drag-chunk))
-                      db))))))
+(defn finish-pan [{{:keys [left top pan-dx pan-dy] :as ldb} :local :as  db}]
+  (-> db
+      (deep-merge
+       {:local {:is-panning false
+                :pan-start-x 0
+                :pan-start-y 0
+                :left (+ left pan-dx)
+                :top (+ top pan-dy)
+                :pan-dx 0
+                :pan-dy 0}})))
+
+
+(defn finish-drag [{ldb :local
+                    {:keys [id] :as udb} :user :as db}
+                   drag-chunk
+                   drag-chunk-dx
+                   drag-chunk-dy] 
+  (let
+   [new-db (-> db
+               (update-in [:shared :draggers] #(dissoc % id))
+               (update-in [:shared :chunks drag-chunk :loc-x] (partial + drag-chunk-dx))
+               (update-in [:shared :chunks drag-chunk :loc-y] (partial + drag-chunk-dy))
+               ((fn [db] (update db :shared #(merge-chunks % ldb drag-chunk)))))
+    before (get-in db [:shared :piece->chunk])
+    after (get-in new-db [:shared :piece->chunk])]
+   (merge 
+    {:db new-db}
+    (if (not= before after) {:play-sound []} {}))))
+
+(defn rotate-chunk [db chunk-index direction]
+  {:db (update-in db [:shared :chunks chunk-index :rotation] #(mod (+ % direction) 4))
+   :dispatch [:rotate-piece chunk-index]})
+
+(defn rotate-x-y [db x y direction]
+  (when-let [chunk (find-chunk db [x y])]
+    (rotate-chunk db (:index chunk) direction)))
+
+(defn mouse-up [{{:keys [has-panned pan-start-x pan-start-y] :as ldb} :local
+                 {:keys [draggers] :as sdb} :shared
+                 {:keys [id] :as udb} :user :as db}
+                right-click?]
+  (let [{:keys [drag-chunk drag-chunk-dx drag-chunk-dy dragged]} (get draggers id)
+        clean-db (assoc-in (finish-pan db) [:shared :draggers] {})]
+    (cond (and drag-chunk (not dragged)) (rotate-chunk clean-db drag-chunk (if right-click? 1 -1))
+          drag-chunk (finish-drag clean-db drag-chunk drag-chunk-dx drag-chunk-dy)
+          (and (not has-panned) right-click?) (rotate-x-y clean-db pan-start-x pan-start-y 1)
+          :else {:db clean-db})))
+
