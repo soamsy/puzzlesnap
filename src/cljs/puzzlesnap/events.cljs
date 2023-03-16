@@ -1,6 +1,7 @@
 (ns puzzlesnap.events
   (:require [puzzlesnap.db :refer [default-db]]
-            [puzzlesnap.model :refer [init-puzzle mouse-down mouse-move mouse-up rotate-x-y]]
+            [puzzlesnap.model :refer [mouse-down mouse-move mouse-up]]
+            [puzzlesnap.roominit :refer [init-puzzle]]
             [re-frame.core :refer [debug path reg-event-db reg-event-fx reg-fx trim-v]]))
 
 (reg-event-fx
@@ -8,8 +9,7 @@
  (fn [_ _]
    {:db default-db}))
 
-(def update-interceptor [debug
-                         trim-v])
+(def update-interceptor [debug trim-v])
 
 (def global-interceptor [debug (path :global) trim-v])
 (def shared-interceptor [debug (path :shared) trim-v])
@@ -95,8 +95,3 @@
        {:db (assoc-in db [:local :rotations chunk-index] target-angle)}
        {:db (assoc-in db [:local :rotations chunk-index] (+ angle (if (< (+ js/Math.PI 0.001) diff) (- tick) tick)))
         :dispatch-later {:ms 16 :dispatch [:rotate-piece chunk-index]}}))))
-
-(reg-event-db
-  :common/set-error
-  (fn [db [_ error]]
-    (assoc db :common/error error)))

@@ -16,3 +16,19 @@
         y-offset (* piece-height (- main-piece-j (apply min (map second piece-grid))))]
     [(- (/ (- (apply max xs) (apply min xs)) 2) x-offset)
      (- (/ (- (apply max ys) (apply min ys)) 2) y-offset)]))
+
+(defn rotate-by [[x y] turns]
+  (if (zero? turns)
+    [x y]
+    (rotate-by [(- y) x] (dec turns))))
+
+(defn rotate-around [orig coords turns]
+  (mapv + orig (rotate-by (map - coords orig) turns)))
+
+(defn rotated-piece-loc [{:keys [piece-width piece-height] :as ldb}
+                         {:keys [loc-x loc-y main-piece-i main-piece-j rotation] :as chunk}
+                         [i j]]
+  (let [[cx cy] (chunk-center ldb chunk)
+        [x y] [(+  (* piece-width (- i main-piece-i)))
+               (+  (* piece-height (- j main-piece-j)))]]
+    (mapv + [loc-x loc-y] (rotate-around [cx cy] [x y] rotation))))
