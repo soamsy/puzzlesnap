@@ -44,21 +44,22 @@
 (defn init-canvas [canvas]
   (let [getTouch (fn [e] (aget (.-touches e) 0))]
     (doto canvas
-      (.addEventListener "mousedown" #(on-mouse-down 
-                                       (offset-coords canvas (.-x %) (.-y %)) 
+      (-> (.getContext "2d") (.translate 0.5 0.5))
+      (.addEventListener "mousedown" #(on-mouse-down
+                                       (offset-coords canvas (.-x %) (.-y %))
                                        (.-buttons %)))
       (.addEventListener "mousemove" #(on-mouse-move (offset-coords canvas (.-x %) (.-y %))))
       #_(.addEventListener "touchstart" #(on-mouse-down
-                                        (offset-coords
-                                         canvas
-                                         (-> % getTouch .-clientX)
-                                         (-> % getTouch .-clientY))
-                                        true) #js {:passive true})
+                                          (offset-coords
+                                           canvas
+                                           (-> % getTouch .-clientX)
+                                           (-> % getTouch .-clientY))
+                                          true) #js {:passive true})
       #_(.addEventListener "touchmove" #(on-mouse-move
-                                       (offset-coords
-                                        canvas
-                                        (-> % getTouch .-clientX)
-                                        (-> % getTouch .-clientY))) #js {:passive true})
+                                         (offset-coords
+                                          canvas
+                                          (-> % getTouch .-clientX)
+                                          (-> % getTouch .-clientY))) #js {:passive true})
       (.addEventListener "mouseup" #(on-mouse-up (.-button %)))
       #_(.addEventListener "touchend" #(on-mouse-up true))
       (.addEventListener "mouseout" #(on-mouse-out (.-pageX %) (.-pageY %)))

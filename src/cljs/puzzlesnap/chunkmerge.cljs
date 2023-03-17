@@ -1,6 +1,6 @@
 (ns puzzlesnap.chunkmerge 
   (:require [clojure.set :as set]
-            [puzzlesnap.grid :refer [rotate-by rotated-piece-loc]]))
+            [puzzlesnap.grid :refer [rotate-by rotated-location]]))
 
 (def dirs [[0 -1]
            [0 1]
@@ -10,8 +10,8 @@
 (defn detect-neighbor [{:keys [piece-width piece-height] :as ldb}
                        a-chunk a-piece
                        b-chunk b-piece]
-  (let [a-loc (rotated-piece-loc ldb a-chunk a-piece)
-        b-loc (rotated-piece-loc ldb b-chunk b-piece)
+  (let [a-loc (rotated-location ldb a-chunk a-piece)
+        b-loc (rotated-location ldb b-chunk b-piece)
         [i j] (map - b-piece a-piece)
         [x-exp y-exp] (rotate-by
                        (map * [piece-width piece-height] [i j])
@@ -32,8 +32,8 @@
 (defn offset-chunk-post-merge [ldb old-chunk new-chunk]
   (let [piece (first (:piece-grid old-chunk))
         [cx-diff cy-diff] (map -
-                               (rotated-piece-loc ldb new-chunk piece)
-                               (rotated-piece-loc ldb old-chunk piece))]
+                               (rotated-location ldb new-chunk piece)
+                               (rotated-location ldb old-chunk piece))]
     (-> new-chunk
         (update :loc-x #(- % cx-diff))
         (update :loc-y #(- % cy-diff)))))
@@ -55,6 +55,8 @@
     (if chosen-chunk
       (-> sdb
           (update-in [:chunks (:index chosen-chunk) :piece-grid] (partial set/union piece-grid))
+          (update-in [:chunks (:index chosen-chunk) :min-coord] #(mapv min % (:min-coord dropped-chunk)))
+          (update-in [:chunks (:index chosen-chunk) :max-coord] #(mapv max % (:max-coord dropped-chunk)))
           (assoc-in [:chunks (:index dropped-chunk) :piece-grid] #{})
           (assoc-in [:piece->chunk] (merge piece->chunk (into {} (map #(vector %1 (:index chosen-chunk)) piece-grid))))
           (update-in [:chunks (:index chosen-chunk)] #(offset-chunk-post-merge ldb chosen-chunk %))

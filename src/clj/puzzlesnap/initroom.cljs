@@ -1,4 +1,5 @@
-(ns puzzlesnap.roominit)
+(ns puzzlesnap.initroom 
+  (:require [puzzlesnap.bezier :refer [create-piece-path]]))
 
 (defn rand-range [start end]
   (+ start (* (- end start) (js/Math.random))))
@@ -53,6 +54,8 @@
          :piece-grid #{[i j]}
          :main-piece-i i
          :main-piece-j j
+         :min-coord [i j]
+         :max-coord [i j]
          :rotation 0})))))
 
 (defn init-piece-to-chunk
@@ -124,6 +127,12 @@
                                         [(translate-bezier (make-bezier-point [0 0]) start-offset)
                                          (translate-bezier (make-bezier-point [0 piece-height]) end-offset)]))))})))
 
+(defn init-piece-paths
+  [ldb {{:keys [piece->chunk]} :shared :as db}]
+  (assoc ldb :paths
+         (into {} (for [piece (keys piece->chunk)]
+                    [piece (create-piece-path db piece)]))))
+
 (defn init-puzzle
   [db]
   (->
@@ -132,4 +141,5 @@
    (update :shared init-piece-to-chunk)
    (update :shared init-chunk-order)
    (init-tabs)
-   (#(assoc-in % [:local :rotations] (vec (repeat (count (get-in % [:shared :chunks])) 0))))))
+   (#(assoc-in % [:local :rotations] (vec (repeat (count (get-in % [:shared :chunks])) 0))))
+   (#(update % :local init-piece-paths %))))

@@ -4,8 +4,8 @@
   {:user {:id "userId1" :name "Cantaloupe"}
    :global {:draw-size 100
             :image-uri "/img/puzzle.jpg"
-            :puzzle-width 5
-            :puzzle-height 4}
+            :puzzle-width 7
+            :puzzle-height 5}
    :local {:id 0
            :left 100
            :top 100
@@ -51,13 +51,19 @@
                                   :index        0
                                   :loc-x        -38.73024503379106
                                   :loc-y        100
-                                  :piece-grid   #{[0 0]}}
+                                  :piece-grid   #{[0 0]}
+                                  :min-coord [0 0]
+                                  :max-coord [0 0]
+                                  }
                                  {:main-piece-i 1
                                   :main-piece-j 0
                                   :index        1
                                   :loc-x        436.08335962047397
                                   :loc-y        100
-                                  :piece-grid   #{[1 0]}}]
+                                  :piece-grid   #{[1 0]}
+                                  :min-coord [1 0]
+                                  :max-coord [1 0]
+                                  }]
             :users [{:id "userId1" :name "Cantaloupe"}]
             :draggers {"userId1" {:drag-chunk 2
                                   :drag-chunk-start-x 0

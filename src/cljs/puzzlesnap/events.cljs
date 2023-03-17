@@ -1,7 +1,7 @@
 (ns puzzlesnap.events
   (:require [puzzlesnap.db :refer [default-db]]
             [puzzlesnap.model :refer [mouse-down mouse-move mouse-up]]
-            [puzzlesnap.roominit :refer [init-puzzle]]
+            [puzzlesnap.initroom :refer [init-puzzle]]
             [re-frame.core :refer [debug path reg-event-db reg-event-fx reg-fx trim-v]]))
 
 (reg-event-fx
@@ -9,11 +9,11 @@
  (fn [_ _]
    {:db default-db}))
 
-(def update-interceptor [debug trim-v])
+(def update-interceptor [ trim-v])
 
 (def global-interceptor [debug (path :global) trim-v])
 (def shared-interceptor [debug (path :shared) trim-v])
-(def local-interceptor [debug (path :local) trim-v])
+(def local-interceptor [ (path :local) trim-v])
 
 (reg-event-db
  :local-tick
@@ -64,6 +64,7 @@
  :play-sound
  (fn [_]
    (let [el (-> js/document (.getElementById "snap-sound"))]
+     (set! (.-volume el) 0.7)
      (.play el))))
 
 (reg-event-db
@@ -71,7 +72,7 @@
  local-interceptor
  (fn [{:keys [scale left top] :as ldb} [x y deltaY]]
    (let [scale-factor (if (< 0 deltaY) 0.85 1.15)
-         new-scale (js/Math.min 4.0 (js/Math.max 0.2 (* scale scale-factor)))
+         new-scale (js/Math.min 1.5 (js/Math.max 0.4 (* scale scale-factor)))
          ratio (/ new-scale scale)
          new-x (* x ratio)
          new-y (* y ratio)]
@@ -83,7 +84,7 @@
 
 (reg-event-fx
  :rotate-piece
- [debug trim-v]
+ update-interceptor
  (fn [{:keys [db]} [chunk-index]]
    (let [chunk (get-in db [:shared :chunks chunk-index])
          angle (get-in db [:local :rotations chunk-index])
@@ -94,4 +95,4 @@
      (if should-stop
        {:db (assoc-in db [:local :rotations chunk-index] target-angle)}
        {:db (assoc-in db [:local :rotations chunk-index] (+ angle (if (< (+ js/Math.PI 0.001) diff) (- tick) tick)))
-        :dispatch-later {:ms 16 :dispatch [:rotate-piece chunk-index]}}))))
+        :dispatch-later {:ms 12 :dispatch [:rotate-piece chunk-index]}}))))
