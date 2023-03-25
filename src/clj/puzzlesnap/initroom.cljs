@@ -17,9 +17,9 @@
 
 (defn swap-xs-ys
   [{:keys [x y cx1 cy1 cx2 cy2]}]
-  {:x (+ y) :y x
-   :cx1 (+ cy1) :cy1 cx1
-   :cx2 (+ cy2) :cy2 cx2})
+  {:x y :y x
+   :cx1 cy1 :cy1 cx1
+   :cx2 cy2 :cy2 cx2})
 
 (defn translate-bezier
   [{:keys [x y cx1 cy1 cx2 cy2]} [sx sy]]
