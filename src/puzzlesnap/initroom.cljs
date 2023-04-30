@@ -33,39 +33,35 @@
    :cx2 x :cy2 y})
 
 (defn init-chunks
-  [sdb
-   {{:keys [puzzle-width puzzle-height]} :global
-    {:keys [piece-width piece-height]} :local :as db}]
-  (assoc
-   sdb :chunks
-   (into
-    []
-    (for [i (range puzzle-width)
-          j (range puzzle-height)]
-      (let [expand-x (* (js/Math.random) 200 (dec (* 2 (/ (inc i) puzzle-width))))
-            expand-y (* (js/Math.random) 200 (dec (* 2 (/ (inc j) puzzle-height))))]
-        {:loc-x (+ expand-x (* i piece-width))
-         :loc-y (+ expand-y (* j piece-height))
-         :drag-start-x 0
-         :drag-start-y 0
-         :drag-dx 0
-         :drag-dy 0
-         :index (+ (* i puzzle-height) j)
-         :piece-grid #{[i j]}
-         :main-piece-i i
-         :main-piece-j j
-         :min-coord [i j]
-         :max-coord [i j]
-         :rotation 0})))))
+  [{:keys [puzzle-width puzzle-height piece-width piece-height] :as db}]
+  (assoc db :chunks
+         (into
+           []
+           (for [i (range puzzle-width)
+                 j (range puzzle-height)]
+             (let [expand-x (* (js/Math.random) 200 (dec (* 2 (/ (inc i) puzzle-width))))
+                   expand-y (* (js/Math.random) 200 (dec (* 2 (/ (inc j) puzzle-height))))]
+               {:loc-x (+ expand-x (* i piece-width))
+                :loc-y (+ expand-y (* j piece-height))
+                :drag-start-x 0
+                :drag-start-y 0
+                :drag-dx 0
+                :drag-dy 0
+                :index (+ (* i puzzle-height) j)
+                :piece-grid #{[i j]}
+                :main-piece-i i
+                :main-piece-j j
+                :min-coord [i j]
+                :max-coord [i j]
+                :rotation 0})))))
 
 (defn init-piece-to-chunk
-  [{chunks :chunks :as sdb}]
-  (assoc sdb :piece->chunk
+  [{chunks :chunks :as db}]
+  (assoc db :piece->chunk
          (into {} (map #(vector [(:main-piece-i %) (:main-piece-j %)] (:index %)) chunks))))
 
-(defn init-chunk-order [{chunks :chunks :as sdb}]
-  (assoc sdb :chunk-order
-         (vec (reverse (map :index chunks)))))
+(defn init-chunk-order [{chunks :chunks :as db}]
+  (assoc db :chunk-order (vec (reverse (map :index chunks)))))
 
 (defn make-tab-xs []
   (let [middle (rand-range 0.42 0.58)
@@ -97,8 +93,7 @@
           xs ys cx1s cy1s cx2s cy2s)))
 
 (defn init-tabs
-  [{{:keys [puzzle-width puzzle-height]} :global
-    {:keys [piece-width piece-height]} :local :as db}]
+  [{:keys [puzzle-width puzzle-height piece-width piece-height] :as db}]
   (let [corners (vec2d (inc puzzle-width) (inc puzzle-height)
                        (fn [i j]
                          (let [limit-x (/ piece-width 12)
@@ -109,37 +104,41 @@
                             (if (< 0 j puzzle-height)
                               (rand-range (- limit-y) limit-y)
                               0)])))]
-    (assoc-in db [:global :tabs]
-              {:top-bottom (vec2d puzzle-width (inc puzzle-height)
-                                  (fn [i j]
-                                    (let [start-offset (get-in corners [i j])
-                                          end-offset (get-in corners [(inc i) j])]
-                                      (if (< 0 j puzzle-height)
-                                        (create-tab piece-width piece-height start-offset end-offset)
-                                        [(translate-bezier (make-bezier-point [0 0]) start-offset)
-                                         (translate-bezier (make-bezier-point [piece-width 0]) end-offset)]))))
-               :left-right (vec2d (inc puzzle-width) puzzle-height
-                                  (fn [i j]
-                                    (let [start-offset (get-in corners [i j])
-                                          end-offset (get-in corners [i (inc j)])]
-                                      (if (< 0 i puzzle-width)
-                                        (mapv swap-xs-ys (create-tab piece-height piece-width (reverse start-offset) (reverse end-offset)))
-                                        [(translate-bezier (make-bezier-point [0 0]) start-offset)
-                                         (translate-bezier (make-bezier-point [0 piece-height]) end-offset)]))))})))
+    (assoc db :tabs
+           {:top-bottom (vec2d puzzle-width (inc puzzle-height)
+                               (fn [i j]
+                                 (let [start-offset (get-in corners [i j])
+                                       end-offset (get-in corners [(inc i) j])]
+                                   (if (< 0 j puzzle-height)
+                                     (create-tab piece-width piece-height start-offset end-offset)
+                                     [(translate-bezier (make-bezier-point [0 0]) start-offset)
+                                      (translate-bezier (make-bezier-point [piece-width 0]) end-offset)]))))
+            :left-right (vec2d (inc puzzle-width) puzzle-height
+                               (fn [i j]
+                                 (let [start-offset (get-in corners [i j])
+                                       end-offset (get-in corners [i (inc j)])]
+                                   (if (< 0 i puzzle-width)
+                                     (mapv swap-xs-ys (create-tab piece-height piece-width (reverse start-offset) (reverse end-offset)))
+                                     [(translate-bezier (make-bezier-point [0 0]) start-offset)
+                                      (translate-bezier (make-bezier-point [0 piece-height]) end-offset)]))))})))
 
 (defn init-piece-paths
-  [ldb {{:keys [piece->chunk]} :shared :as db}]
-  (assoc ldb :paths
+  [{:keys [piece->chunk] :as db}]
+  (assoc db :paths
          (into {} (for [piece (keys piece->chunk)]
                     [piece (create-piece-path db piece)]))))
+
+
+(defn init-rotations [db]
+  (assoc db :rotations (vec (repeat (count (get db :chunks)) 0))))
 
 (defn init-puzzle
   [db]
   (->
    db
-   (update :shared init-chunks db)
-   (update :shared init-piece-to-chunk)
-   (update :shared init-chunk-order)
-   (init-tabs)
-   (#(assoc-in % [:local :rotations] (vec (repeat (count (get-in % [:shared :chunks])) 0))))
-   (#(update % :local init-piece-paths %))))
+   init-chunks
+   init-piece-to-chunk
+   init-chunk-order
+   init-tabs
+   init-rotations
+   init-piece-paths))

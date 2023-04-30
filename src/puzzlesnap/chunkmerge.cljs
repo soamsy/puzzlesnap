@@ -7,11 +7,11 @@
            [-1 0]
            [1 0]])
 
-(defn detect-neighbor [{:keys [piece-width piece-height] :as ldb}
+(defn detect-neighbor [{:keys [piece-width piece-height] :as db}
                        a-chunk a-piece
                        b-chunk b-piece]
-  (let [a-loc (rotated-location ldb a-chunk a-piece)
-        b-loc (rotated-location ldb b-chunk b-piece)
+  (let [a-loc (rotated-location db a-chunk a-piece)
+        b-loc (rotated-location db b-chunk b-piece)
         [i j] (map - b-piece a-piece)
         [x-exp y-exp] (rotate-by
                        (map * [piece-width piece-height] [i j])
@@ -29,16 +29,16 @@
        :dist (if top-bottom-snap? y-dist x-dist)})))
 
 
-(defn offset-chunk-post-merge [ldb old-chunk new-chunk]
+(defn offset-chunk-post-merge [db old-chunk new-chunk]
   (let [piece (first (:piece-grid old-chunk))
         [cx-diff cy-diff] (map -
-                               (rotated-location ldb new-chunk piece)
-                               (rotated-location ldb old-chunk piece))]
+                               (rotated-location db new-chunk piece)
+                               (rotated-location db old-chunk piece))]
     (-> new-chunk
         (update :loc-x #(- % cx-diff))
         (update :loc-y #(- % cy-diff)))))
 
-(defn merge-chunks [{:keys [chunks piece->chunk] :as sdb} ldb dropped-chunk-index]
+(defn merge-chunks [{:keys [chunks piece->chunk] :as db} dropped-chunk-index]
   (let [dropped-chunk (get chunks dropped-chunk-index)
         piece-grid (:piece-grid dropped-chunk)
         potential-chunks
@@ -48,17 +48,17 @@
                 neighbor-chunk (get chunks (piece->chunk neighbor-piece))]
             (when neighbor-chunk
               (detect-neighbor
-               ldb
+               db
                dropped-chunk dropped-piece
                neighbor-chunk neighbor-piece))))
         {chosen-chunk :chunk} (first (sort-by :dist (filter identity potential-chunks)))]
     (if chosen-chunk
-      (-> sdb
+      (-> db
           (update-in [:chunks (:index chosen-chunk) :piece-grid] (partial set/union piece-grid))
           (update-in [:chunks (:index chosen-chunk) :min-coord] #(mapv min % (:min-coord dropped-chunk)))
           (update-in [:chunks (:index chosen-chunk) :max-coord] #(mapv max % (:max-coord dropped-chunk)))
           (assoc-in [:chunks (:index dropped-chunk) :piece-grid] #{})
           (assoc-in [:piece->chunk] (merge piece->chunk (into {} (map #(vector %1 (:index chosen-chunk)) piece-grid))))
-          (update-in [:chunks (:index chosen-chunk)] #(offset-chunk-post-merge ldb chosen-chunk %))
-          (merge-chunks ldb (:index chosen-chunk)))
-      sdb)))
+          (update-in [:chunks (:index chosen-chunk)] #(offset-chunk-post-merge db chosen-chunk %))
+          (merge-chunks (:index chosen-chunk)))
+      db)))

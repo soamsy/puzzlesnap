@@ -29,59 +29,53 @@
   (blur-off ctx))
 
 (defn reposition-canvas
-  [ctx {:keys [left top pan-dx pan-dy scale] :as ldb}]
+  [ctx {:keys [left top pan-dx pan-dy scale]}]
   (doto ctx
     (.scale scale scale)
     (.translate (+ left pan-dx) (+ top pan-dy))))
 
 (defn reposition-to-chunk
   [ctx 
-   {:keys [rotations] :as ldb}
-   drag
+   {:keys [rotations] :as db}
+   dragging
    {:keys [index loc-x loc-y] :as chunk}]
-  (let [[drag-dx drag-dy] (if drag
-                            [(:drag-chunk-dx drag) (:drag-chunk-dy drag)]
-                            [0 0])
-        [cx cy] (chunk-center ldb chunk)]
+  (let [drag-dx (get dragging :drag-chunk-dx 0)
+        drag-dy (get dragging :drag-chunk-dy 0)
+        [cx cy] (chunk-center db chunk)]
     (.translate ctx (+ loc-x cx drag-dx) (+ loc-y cy drag-dy))
     (.rotate ctx (get rotations index))
     (.translate ctx (- 0 cx) (- 0 cy))))
 
 (defn reposition-to-piece
-  [ctx ldb chunk piece]
-  (let [[x y] (piece-loc ldb chunk piece)]
+  [ctx db chunk piece]
+  (let [[x y] (piece-loc db chunk piece)]
     (.translate ctx x y)))
 
 (defn draw-shadow
   [ctx
-   {{:keys [piece-width piece-height paths] :as ldb} :local 
-       {:keys [draggers]} :shared
-    :as db}
+   {:keys [paths] :as db}
    chunk
-   [i j :as piece]]
-   (let [drag (first (filter #(= (:drag-chunk %) (:index chunk)) (vals draggers)))
-         [sx sy] [(* i piece-width) (* j piece-height)]
-         [bx by] [(/ piece-width 2) (/ piece-height 2)]
-         path (get paths piece)]
+   piece]
+   (let [path (get paths piece)]
      (save-restore
       ctx
       (doto ctx
-        (reposition-to-piece ldb chunk piece)
+        (reposition-to-piece db chunk piece)
         (.fill path)
         (.stroke path)))))
 
 (defn draw-piece
   [ctx image
-   {{:keys [piece-width piece-height paths] :as ldb} :local :as db}
+   {:keys [piece-width piece-height paths] :as db}
    chunk
    [i j :as piece]]
-  (let [ [sx sy] [(* i piece-width) (* j piece-height)]
+  (let [[sx sy] [(* i piece-width) (* j piece-height)]
         [bx by] [(/ piece-width 2) (/ piece-height 2)]
         path (get paths piece)]
     (save-restore
      ctx
      (doto ctx
-       (reposition-to-piece ldb chunk piece)
+       (reposition-to-piece db chunk piece)
        (.clip path)
        (.drawImage
         image
@@ -91,15 +85,14 @@
 
 (defn draw-chunk
   [ctx
-  image
-   {ldb :local
-    {:keys [draggers]} :shared :as db}
+   image
+   {:keys [dragging] :as db}
    {:keys [piece-grid] :as chunk}]
   (when (seq piece-grid)
-    (let [drag (first (filter #(= (:drag-chunk %) (:index chunk)) (vals draggers)))]
+    (let [drag (if (= (:drag-chunk dragging) (:index chunk)) dragging nil)]
       (save-restore
        ctx
-       (reposition-to-chunk ctx ldb drag chunk)
+       (reposition-to-chunk ctx db drag chunk)
        (blur-on ctx drag)
        (doall
         (for [piece piece-grid]
@@ -112,11 +105,10 @@
 (defn draw-chunks
   [ctx
    image
-   {ldb :local
-    {:keys [chunks chunk-order] :as sdb} :shared :as db}]
+   {:keys [chunks chunk-order] :as db}]
   (save-restore
    ctx
-   (reposition-canvas ctx ldb)
+   (reposition-canvas ctx db)
    (doall
     (for [i chunk-order]
       (let [chunk (get chunks i)]
@@ -124,25 +116,24 @@
 
 (defn find-chunk-by-point
   [ctx
-   {{:keys [paths] :as ldb} :local
-    {:keys [chunks chunk-order draggers]} :shared :as db}
+   {:keys [paths chunks chunk-order dragging] :as db}
    [x y]]
   (save-restore
    ctx
-   (reposition-canvas ctx ldb)
+   (reposition-canvas ctx db)
    (->>
     (for [i chunk-order]
       (let [{:keys [piece-grid] :as chunk} (get chunks i)]
         (save-restore
          ctx
-         (reposition-to-chunk ctx ldb draggers chunk)
+         (reposition-to-chunk ctx db dragging chunk)
          (first
           (filter
            seq
            (for [piece piece-grid]
              (save-restore
               ctx
-              (reposition-to-piece ctx ldb chunk piece)
+              (reposition-to-piece ctx db chunk piece)
               (when (.isPointInPath ctx (get paths piece) x y)
                 chunk))))))))
     (filter seq)
@@ -160,6 +151,6 @@
       (when-not (= h (.-height canvasNode))
         (set! (.-height canvasNode) h))
       (set! (.-lineJoin ctx) "round")
-      (default-styles ctx (get-in db [:local :piece-width]))
+      (default-styles ctx (get db :piece-width))
       (.clearRect ctx 0 0 w h)
       (draw-chunks ctx image db))))

@@ -7,9 +7,5 @@
  identity)
 
 (rf/reg-sub
- :global
- #(get-in % [:global]))
-
-(rf/reg-sub
- :global/image-uri
- #(get-in % [:global :image-uri]))
+ :image-uri
+ #(get-in % [:image-uri]))

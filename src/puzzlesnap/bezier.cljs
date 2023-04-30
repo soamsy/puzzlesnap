@@ -44,8 +44,9 @@
    (get-in left-right [(inc i) j])])
 
 (defn create-piece-path
-  [{{:keys [piece-width piece-height]} :local
-    {{:keys [left-right top-bottom]} :tabs} :global :as db}
+  [{:keys [piece-width piece-height] 
+   {:keys [left-right top-bottom]} :tabs
+    :as db}
    [i j]]
   (let [[top bottom left right] (get-piece-beziers top-bottom left-right [i j] [piece-width piece-height])
         path (js/Path2D.)]

@@ -83,7 +83,7 @@
 
 (defn canvas-outer []
   (r/with-let
-    [image-uri (rf/subscribe [:global/image-uri])
+    [image-uri (rf/subscribe [:image-uri])
      resize-handler #(rf/dispatch [:local-tick])
      _ (.addEventListener js/window "resize" resize-handler)
      no-context-menu #(.preventDefault %)
