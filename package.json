@@ -1,16 +1,27 @@
 {
 	"name": "puzzlesnap",
 	"scripts": {
-		"ancient": "clojure -Sdeps '{:deps {com.github.liquidz/antq {:mvn/version \"RELEASE\"}}}' -m antq.core",
-		"watch": "npx shadow-cljs watch app browser-test karma-test",
-		"release": "npx shadow-cljs release app",
-		"build-report": "npx shadow-cljs run shadow.cljs.build-report app target/build-report.html"
+		"shadow:watch": "cross-env shadow-cljs watch app browser-test karma-test",
+		"shadow:release": "cross-env shadow-cljs release app",
+		"postcss:build": "cross-env postcss resources/css/main.css -o ./resources/public/css/main.css --verbose",
+		"postcss:watch": "cross-env postcss resources/css/main.css -o ./resources/public/css/main.css --verbose -w",
+		"postcss:release": "cross-env NODE_ENV=production postcss resources/css/main.css -o ./resources/public/css/main.css --verbose",
+		"build-report": "cross-env shadow-cljs run shadow.cljs.build-report app target/build-report.html",
+    "dev": "run-p -l *:watch",
+    "release": "run-s *:release"
 	},
 	"dependencies": {
 		"react": "17.0.2",
 		"react-dom": "17.0.2"
 	},
 	"devDependencies": {
-		"shadow-cljs": "2.20.5"
+		"autoprefixer": "^10.4.14",
+		"cross-env": "^7.0.3",
+		"cssnano": "^6.0.0",
+		"npm-run-all": "^4.1.5",
+		"postcss": "^8.4.23",
+		"postcss-cli": "^10.1.0",
+		"shadow-cljs": "2.20.5",
+		"tailwindcss": "^3.3.2"
 	}
 }
