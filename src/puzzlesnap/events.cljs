@@ -1,8 +1,9 @@
 (ns puzzlesnap.events
   (:require [puzzlesnap.db :refer [default-db]]
-            [puzzlesnap.model :refer [mouse-down mouse-move mouse-up]]
             [puzzlesnap.initroom :refer [init-puzzle]]
-            [re-frame.core :refer [debug path reg-event-db reg-event-fx reg-fx trim-v]]))
+            [puzzlesnap.model :refer [mouse-down mouse-move mouse-up]]
+            [re-frame.core :refer [debug path reg-event-db reg-event-fx reg-fx
+                                   trim-v]]))
 
 (reg-event-fx
  :app/initialize

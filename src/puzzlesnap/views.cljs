@@ -1,10 +1,10 @@
 (ns puzzlesnap.views
-  (:require [day8.re-frame.http-fx]
-            [puzzlesnap.canvas :refer [update-canvas]]
-            [puzzlesnap.events]
-            [puzzlesnap.subs]
-            [re-frame.core :as rf]
-            [reagent.core :as r]))
+  (:require 
+    [puzzlesnap.canvas :refer [update-canvas]]
+    [puzzlesnap.events]
+    [puzzlesnap.subs]
+    [re-frame.core :as rf]
+    [reagent.core :as r]))
 
 (defn navbar []
   (r/with-let [expanded? (r/atom false)]
@@ -23,8 +23,8 @@
      [:audio {:id "snap-sound" :src "/audio/pop.wav" :preload ""}]]))
 
 (defn offset-coords [canvas x y]
-   [(- x (.-offsetLeft canvas))
-    (- y (.-offsetTop canvas))])
+  [(- x (.-offsetLeft canvas))
+   (- y (.-offsetTop canvas))])
 
 (defn on-mouse-down [[x y] buttons]
   (rf/dispatch [:mouse-down x y buttons]))
@@ -46,20 +46,20 @@
     (doto canvas
       (-> (.getContext "2d") (.translate 0.5 0.5))
       (.addEventListener "mousedown" #(on-mouse-down
-                                       (offset-coords canvas (.-x %) (.-y %))
-                                       (.-buttons %)))
+                                        (offset-coords canvas (.-x %) (.-y %))
+                                        (.-buttons %)))
       (.addEventListener "mousemove" #(on-mouse-move (offset-coords canvas (.-x %) (.-y %))))
       #_(.addEventListener "touchstart" #(on-mouse-down
-                                          (offset-coords
-                                           canvas
-                                           (-> % getTouch .-clientX)
-                                           (-> % getTouch .-clientY))
-                                          true) #js {:passive true})
+                                           (offset-coords
+                                             canvas
+                                             (-> % getTouch .-clientX)
+                                             (-> % getTouch .-clientY))
+                                           true) #js {:passive true})
       #_(.addEventListener "touchmove" #(on-mouse-move
-                                         (offset-coords
-                                          canvas
-                                          (-> % getTouch .-clientX)
-                                          (-> % getTouch .-clientY))) #js {:passive true})
+                                          (offset-coords
+                                            canvas
+                                            (-> % getTouch .-clientX)
+                                            (-> % getTouch .-clientY))) #js {:passive true})
       (.addEventListener "mouseup" #(on-mouse-up (.-button %)))
       #_(.addEventListener "touchend" #(on-mouse-up true))
       (.addEventListener "mouseout" #(on-mouse-out (.-pageX %) (.-pageY %)))
@@ -69,17 +69,17 @@
   (let [canvas-ref (atom nil)
         db (rf/subscribe [:db])]
     (r/create-class
-     {:reagent-render
-      (fn []
-        @db
-        [:canvas#canvas-inner {:ref #(reset! canvas-ref %)}])
-      :component-did-mount
-      (fn []
-        (init-canvas @canvas-ref))
-      :component-did-update
-      (fn []
-        (update-canvas @db @canvas-ref @img-ref))
-      :display-name "canvas-inner"})))
+      {:reagent-render
+       (fn []
+         @db
+         [:canvas#canvas-inner {:ref #(reset! canvas-ref %)}])
+       :component-did-mount
+       (fn []
+         (init-canvas @canvas-ref))
+       :component-did-update
+       (fn []
+         (update-canvas @db @canvas-ref @img-ref))
+       :display-name "canvas-inner"})))
 
 (defn canvas-outer []
   (r/with-let
