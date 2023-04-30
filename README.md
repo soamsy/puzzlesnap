@@ -2,7 +2,7 @@
 
 To start a web server for the application, run:
 
-    npm run watch
+    npm run dev
 
 # TODO
 Make stroke outline more shadow based
