@@ -68,7 +68,7 @@
   update-interceptor
   (fn [{:keys [scale left top] :as db} [x y deltaY]]
     (let [scale-factor (if (< 0 deltaY) 0.85 1.15)
-          new-scale (js/Math.min 1.5 (js/Math.max 0.4 (* scale scale-factor)))
+          new-scale (js/Math.min 2.5 (js/Math.max 0.4 (* scale scale-factor)))
           ratio (/ new-scale scale)
           new-x (* x ratio)
           new-y (* y ratio)]
